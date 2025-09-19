@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import type { FastifyReply } from 'fastify';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
@@ -14,6 +15,7 @@ describe('Users Integration Tests', () => {
   let usersController: UsersController;
   let usersService: UsersService;
   let usersRepository: Repository<User>;
+  let mockReply: FastifyReply;
 
   beforeAll(async () => {
     app = await Test.createTestingModule({
@@ -39,6 +41,11 @@ describe('Users Integration Tests', () => {
   beforeEach(async () => {
     // Clean database before each test
     await usersRepository.clear();
+
+    // Initialize mock reply
+    mockReply = {
+      status: jest.fn().mockReturnThis(),
+    } as unknown as FastifyReply;
   });
 
   describe('User Creation', () => {
@@ -50,16 +57,17 @@ describe('Users Integration Tests', () => {
         password: 'password123',
       };
 
-      const result = await usersController.create(createUserDto);
+      const createUserResult = await usersController.create(createUserDto, mockReply);
 
-      expect(result).toHaveProperty('id');
-      expect(result.firstName).toBe(createUserDto.firstName);
-      expect(result.lastName).toBe(createUserDto.lastName);
-      expect(result.email).toBe(createUserDto.email);
-      expect(result.password).toBe(createUserDto.password);
+      expect(createUserResult.success).toBe(true);
+      expect(createUserResult.data).toHaveProperty('id');
+      expect(createUserResult.data.firstName).toBe(createUserDto.firstName);
+      expect(createUserResult.data.lastName).toBe(createUserDto.lastName);
+      expect(createUserResult.data.email).toBe(createUserDto.email);
+      expect(createUserResult.data.password).toBe(createUserDto.password);
 
       // Verify user was actually saved to database
-      const savedUser = await usersRepository.findOneBy({ id: result.id });
+      const savedUser = await usersRepository.findOneBy({ id: createUserResult.data.id });
       expect(savedUser).toBeTruthy();
       expect(savedUser?.email).toBe(createUserDto.email);
     });
@@ -72,10 +80,10 @@ describe('Users Integration Tests', () => {
         password: 'password123',
       };
 
-      const result = await usersService.createUser(createUserDto);
+      const createUserResult = await usersService.createUser(createUserDto);
 
-      expect(result).toHaveProperty('id');
-      expect(result.firstName).toBe(createUserDto.firstName);
+      expect(createUserResult).toHaveProperty('id');
+      expect(createUserResult.firstName).toBe(createUserDto.firstName);
 
       // Verify in database
       const count = await usersRepository.count();
@@ -101,11 +109,12 @@ describe('Users Integration Tests', () => {
       });
 
       // Act
-      const result = await usersController.findAll();
+      const findAllUsersResult = await usersController.findAll(mockReply);
 
       // Assert
-      expect(result).toHaveLength(2);
-      expect(result).toEqual(
+      expect(findAllUsersResult.success).toBe(true);
+      expect(findAllUsersResult.data).toHaveLength(2);
+      expect(findAllUsersResult.data).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ id: user1.id, email: user1.email }),
           expect.objectContaining({ id: user2.id, email: user2.email }),
@@ -114,10 +123,10 @@ describe('Users Integration Tests', () => {
     });
 
     it('should return empty array when no users exist', async () => {
-      const result = await usersController.findAll();
+      const findAllUsersResult = await usersController.findAll(mockReply);
 
-      expect(result).toEqual([]);
-      expect(result).toHaveLength(0);
+      expect(findAllUsersResult.data).toEqual([]);
+      expect(findAllUsersResult.data).toHaveLength(0);
     });
 
     it('should return a specific user by id', async () => {
@@ -130,18 +139,18 @@ describe('Users Integration Tests', () => {
       });
 
       // Act
-      const result = await usersController.findOne(user.id.toString());
+      const findOneUserResult = await usersController.findOne(user.id.toString(), mockReply);
 
       // Assert
-      expect(result).toBeTruthy();
-      expect(result?.id).toBe(user.id);
-      expect(result?.email).toBe(user.email);
+      expect(findOneUserResult).toBeTruthy();
+      expect(findOneUserResult?.data?.id).toBe(user.id);
+      expect(findOneUserResult?.data?.email).toBe(user.email);
     });
 
     it('should return null for non-existent user', async () => {
-      const result = await usersController.findOne('999');
+      const findOneUserResult = await usersController.findOne('999', mockReply);
 
-      expect(result).toBeNull();
+      expect(findOneUserResult.data).toBeNull();
     });
   });
 
@@ -161,12 +170,16 @@ describe('Users Integration Tests', () => {
       };
 
       // Act
-      const result = await usersController.update(user.id.toString(), updateUserDto);
+      const updateUserResult = await usersController.update(
+        user.id.toString(),
+        updateUserDto,
+        mockReply,
+      );
 
       // Assert
-      expect(result.firstName).toBe(updateUserDto.firstName);
-      expect(result.email).toBe(updateUserDto.email);
-      expect(result.lastName).toBe(user.lastName); // Should remain unchanged
+      expect(updateUserResult.data.firstName).toBe(updateUserDto.firstName);
+      expect(updateUserResult.data.email).toBe(updateUserDto.email);
+      expect(updateUserResult.data.lastName).toBe(user.lastName); // Should remain unchanged
 
       // Verify changes persisted in database
       const updatedUser = await usersRepository.findOneBy({ id: user.id });
@@ -189,7 +202,7 @@ describe('Users Integration Tests', () => {
       expect(initialCount).toBe(1);
 
       // Act
-      await usersController.remove(user.id.toString());
+      await usersController.remove(user.id.toString(), mockReply);
 
       // Assert
       const finalCount = await usersRepository.count();
@@ -210,26 +223,30 @@ describe('Users Integration Tests', () => {
         password: 'password123',
       };
 
-      const createdUser = await usersController.create(createUserDto);
-      expect(createdUser.id).toBeDefined();
+      const createdUser = await usersController.create(createUserDto, mockReply);
+      expect(createdUser.data.id).toBeDefined();
 
       // Read One
-      const foundUser = await usersController.findOne(createdUser.id.toString());
-      expect(foundUser?.email).toBe(createUserDto.email);
+      const foundUser = await usersController.findOne(createdUser.data.id.toString(), mockReply);
+      expect(foundUser?.data?.email).toBe(createUserDto.email);
 
       // Read All
-      const allUsers = await usersController.findAll();
-      expect(allUsers).toHaveLength(1);
+      const allUsers = await usersController.findAll(mockReply);
+      expect(allUsers.data).toHaveLength(1);
 
       // Update
       const updateDto: UpdateUserDto = { firstName: 'E2E Updated' };
-      const updatedUser = await usersController.update(createdUser.id.toString(), updateDto);
-      expect(updatedUser.firstName).toBe('E2E Updated');
+      const updatedUser = await usersController.update(
+        createdUser.data.id.toString(),
+        updateDto,
+        mockReply,
+      );
+      expect(updatedUser.data.firstName).toBe('E2E Updated');
 
       // Delete
-      await usersController.remove(createdUser.id.toString());
-      const deletedUser = await usersController.findOne(createdUser.id.toString());
-      expect(deletedUser).toBeNull();
+      await usersController.remove(createdUser.data.id.toString(), mockReply);
+      const deletedUser = await usersController.findOne(createdUser.data.id.toString(), mockReply);
+      expect(deletedUser.data).toBeNull();
     });
   });
 });

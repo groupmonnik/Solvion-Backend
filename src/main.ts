@@ -8,8 +8,16 @@ import { HttpExceptionFilter } from './common/exception-filters/http-exception/h
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: true }),
+    new FastifyAdapter({
+      logger: true,
+    }),
   );
+
+  // Habilitar CORS para Fastify
+  await app.register(import('@fastify/cors'), {
+    origin: true,
+    credentials: true,
+  });
 
   app.setGlobalPrefix('api');
 
@@ -21,11 +29,12 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
-bootstrap();
+bootstrap().catch(error => console.error('Bootstrap failed:', error));

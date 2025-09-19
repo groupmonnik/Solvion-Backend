@@ -22,8 +22,8 @@ export class UsersService {
   ) {}
 
   async createUser(payload: CreateUserPayload): Promise<CreateUserReturn> {
-    const user = this.usersRepository.create(payload);
-    return await this.usersRepository.save(user);
+    const createUserResult = this.usersRepository.create(payload);
+    return await this.usersRepository.save(createUserResult);
   }
 
   async findAllUsers(): Promise<FindAllUsersReturn> {
@@ -37,13 +37,13 @@ export class UsersService {
   async updateUser(payload: UpdateUserPayload & { id: number }): Promise<UpdateUserReturn> {
     const { id, ...updateData } = payload;
     await this.usersRepository.update(id, updateData);
-    const user = await this.findUserById({ id });
+    const findUserByIdResult = await this.findUserById({ id });
 
-    if (!user) {
+    if (!findUserByIdResult) {
       throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST);
     }
 
-    return user as InferIdType<User, number>;
+    return findUserByIdResult as InferIdType<User, number>;
   }
 
   async removeUser(payload: RemoveUserPayload): Promise<RemoveUserReturn> {

@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { HttpStatus } from '@nestjs/common';
+import type { FastifyReply } from 'fastify';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -14,6 +16,10 @@ describe('UsersController', () => {
     updateUser: jest.fn(),
     removeUser: jest.fn(),
   };
+
+  const mockReply = {
+    status: jest.fn().mockReturnThis(),
+  } as unknown as FastifyReply;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -48,10 +54,16 @@ describe('UsersController', () => {
     const mockUser = { id: 1, ...createUserDto };
     mockUsersService.createUser.mockResolvedValue(mockUser);
 
-    const result = await controller.create(createUserDto);
+    const createUserResult = await controller.create(createUserDto, mockReply);
 
     expect(mockUsersService.createUser).toHaveBeenCalledWith(createUserDto);
-    expect(result).toEqual(mockUser);
+    expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.CREATED);
+    expect(createUserResult).toEqual({
+      statusCode: HttpStatus.CREATED,
+      message: 'User created successfully',
+      success: true,
+      data: mockUser,
+    });
   });
 
   it('should return all users', async () => {
@@ -74,10 +86,16 @@ describe('UsersController', () => {
 
     mockUsersService.findAllUsers.mockResolvedValue(mockUsers);
 
-    const result = await controller.findAll();
+    const findAllUsersResult = await controller.findAll(mockReply);
 
     expect(mockUsersService.findAllUsers).toHaveBeenCalled();
-    expect(result).toEqual(mockUsers);
+    expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(findAllUsersResult).toEqual({
+      statusCode: HttpStatus.OK,
+      message: 'Users retrieved successfully',
+      success: true,
+      data: mockUsers,
+    });
   });
 
   it('should return a single user', async () => {
@@ -91,15 +109,22 @@ describe('UsersController', () => {
 
     mockUsersService.findUserById.mockResolvedValue(mockUser);
 
-    const result = await controller.findOne('1');
+    const findOneUserResult = await controller.findOne('1', mockReply);
 
     expect(mockUsersService.findUserById).toHaveBeenCalledWith({ id: 1 });
-    expect(result).toEqual(mockUser);
+    expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(findOneUserResult).toEqual({
+      statusCode: HttpStatus.OK,
+      message: 'User retrieved successfully',
+      success: true,
+      data: mockUser,
+    });
   });
 
   it('should update a user', async () => {
     const updateUserDto: UpdateUserDto = {
       firstName: 'John Updated',
+      lastName: 'Doe',
       email: 'johnupdated@example.com',
     };
 
@@ -113,17 +138,30 @@ describe('UsersController', () => {
 
     mockUsersService.updateUser.mockResolvedValue(mockUser);
 
-    const result = await controller.update('1', updateUserDto);
+    const updateUserResult = await controller.update('1', updateUserDto, mockReply);
 
     expect(mockUsersService.updateUser).toHaveBeenCalledWith({ id: 1, ...updateUserDto });
-    expect(result).toEqual(mockUser);
+    expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(updateUserResult).toEqual({
+      statusCode: HttpStatus.OK,
+      message: 'User updated successfully',
+      success: true,
+      data: mockUser,
+    });
   });
 
   it('should remove a user', async () => {
     mockUsersService.removeUser.mockResolvedValue(undefined);
 
-    await controller.remove('1');
+    const removeUserResult = await controller.remove('1', mockReply);
 
     expect(mockUsersService.removeUser).toHaveBeenCalledWith({ id: 1 });
+    expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(removeUserResult).toEqual({
+      statusCode: HttpStatus.OK,
+      message: 'User removed successfully',
+      success: true,
+      data: undefined,
+    });
   });
 });
