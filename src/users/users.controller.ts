@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Res, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -9,11 +10,21 @@ import { FindUserByIdResponse } from './types/controller/response/find-user-by-i
 import { UpdateUserResponse } from './types/controller/response/update-user-response.type';
 import { RemoveUserResponse } from './types/controller/response/remove-user-response.type';
 
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a new user' })
+  @ApiResponse({
+    status: 201,
+    description: 'User created successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation error',
+  })
   async create(
     @Body() createUserDto: CreateUserDto,
     @Res({ passthrough: true }) reply: FastifyReply,
@@ -31,6 +42,11 @@ export class UsersController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Get all users' })
+  @ApiResponse({
+    status: 200,
+    description: 'Users retrieved successfully',
+  })
   async findAll(@Res({ passthrough: true }) reply: FastifyReply): Promise<FindAllUsersResponse> {
     const findAllUsersResult = await this.usersService.findAllUsers();
 
@@ -45,6 +61,15 @@ export class UsersController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get user by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
   async findOne(
     @Param('id') id: string,
     @Res({ passthrough: true }) reply: FastifyReply,
@@ -62,6 +87,19 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update user by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation error',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -80,6 +118,15 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete user by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User removed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
   async remove(
     @Param('id') id: string,
     @Res({ passthrough: true }) reply: FastifyReply,
