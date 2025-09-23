@@ -7,5 +7,6 @@
     "source.fixAll.eslint": "always"
   },
   "eslint.format.enable": true,
-  "prettier.endOfLine": "lf"
+  "prettier.endOfLine": "lf",
+  "postman.settings.dotenv-detection-notification-visibility": false
 }

@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/entities/user.entity';
+import { AuthModule } from './auth/auth.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/auth.jwt.guard';
 
 @Module({
   imports: [
@@ -24,6 +26,10 @@ import { User } from './users/entities/user.entity';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
   ],
+  providers: [
+    {provide: APP_GUARD, useClass: JwtAuthGuard}
+  ]
 })
 export class AppModule {}
