@@ -4,15 +4,15 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity()
 export class MetaAccount {
   @PrimaryGeneratedColumn()
   id: number;
-
-  @Column({ unique: true })
-  userId: number;
 
   @Column()
   facebookUserId: string;
@@ -51,4 +51,8 @@ export class MetaAccount {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 }
