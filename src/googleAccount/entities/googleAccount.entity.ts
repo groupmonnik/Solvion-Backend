@@ -1,12 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity()
 export class GoogleAccount {
   @PrimaryGeneratedColumn()
   id: number;
-
-  @Column()
-  userId: number;
 
   @Column()
   customerId: string;
@@ -22,4 +20,8 @@ export class GoogleAccount {
 
   @Column({ type: 'timestamp', nullable: true })
   refreshTokenExpiresIn: number;
+
+  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 }
