@@ -13,11 +13,7 @@ async function bootstrap() {
     }),
   );
 
-  // Habilitar CORS para Fastify
-  await app.register(import('@fastify/cors'), {
-    origin: true,
-    credentials: true,
-  });
+  app.enableCors();
 
   app.setGlobalPrefix('api');
 
