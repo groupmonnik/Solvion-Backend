@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: solvion
+    restart: always
+    environment:
+      POSTGRES_USER: solvion
+      POSTGRES_PASSWORD: senhaSegura
+      POSTGRES_DB: solvion_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

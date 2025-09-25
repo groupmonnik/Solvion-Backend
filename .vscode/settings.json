@@ -1,9 +1,12 @@
 {
+  "files.eol": "\n",
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
   "editor.codeActionsOnSave": {
     "source.organizeImports": "never",
     "source.fixAll.eslint": "always"
   },
-  "eslint.format.enable": true
+  "eslint.format.enable": true,
+  "prettier.endOfLine": "lf",
+  "postman.settings.dotenv-detection-notification-visibility": false
 }
