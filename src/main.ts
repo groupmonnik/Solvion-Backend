@@ -5,33 +5,18 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './common/exception-filters/http-exception/http-exception.filter';
 import fastifyCookie from '@fastify/cookie';
-import fastifyCors from '@fastify/cors';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter({ logger: true }),
-  );
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
 
-  // CORS - cast para any resolve o erro de tipagem
-  await app.register(fastifyCors as any, {
-    origin: true,
-    credentials: true,
-  });
-
-  // Cookies
   await app.register(fastifyCookie as any, {
-    secret: 'my-secret',
+    secret: process.env.COOKIE_SECRET,
   });
 
-  app.setGlobalPrefix('api');
+  app.enableCors();
 
-  // Swagger
-  const config = new DocumentBuilder().setTitle('Solvion').setVersion('1.0').build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('swagger', app, document);
+  app.setGlobalPrefix(process.env.API_PREFIX ?? 'api');
 
-  // Pipes e Filters globais
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -39,9 +24,19 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  const config = new DocumentBuilder()
+    .setTitle('Solvion API')
+    .setDescription('Documentação da API do Solvion')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('swagger', app, document);
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
-
-bootstrap().catch(error => console.error('Bootstrap failed:', error));
+bootstrap();

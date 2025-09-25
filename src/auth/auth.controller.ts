@@ -6,6 +6,7 @@ import { IsPublic } from '@/common/decorators/public.decorator';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
+import { clearAuthCookie, setAuthCookie } from '@/common/utils/cookies.util';
 
 dayjs.extend(duration);
 
@@ -28,15 +29,9 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: FastifyReply) {
     const { accessToken, refreshToken } = await this.authService.generate(loginDto);
 
-    res.setCookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: false,
-      path: '/api/auth/refresh',
-      sameSite: 'strict',
-      maxAge: dayjs.duration(1, 'day').asMilliseconds(),
-    });
+    setAuthCookie(res, accessToken, refreshToken);
 
-    return { accessToken };
+    return { message: 'login successfully' };
   }
 
   @IsPublic()
@@ -60,14 +55,9 @@ export class AuthController {
     const { accessToken, refreshToken: newRefreshToken } =
       await this.authService.refreshToken(refreshToken);
 
-    res.setCookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: false,
-      path: '/api/auth/refresh',
-    });
+    setAuthCookie(res, accessToken, newRefreshToken);
 
-    return { accessToken };
+    return { message: 'new tokens generated' };
   }
 
   @IsPublic()
@@ -81,13 +71,7 @@ export class AuthController {
     schema: { example: { message: 'Logged out successfully' } },
   })
   logout(@Res({ passthrough: true }) res: FastifyReply) {
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: false,
-      path: '/api/auth/refresh',
-    });
-
+    clearAuthCookie(res);
     return { message: 'Logged out successfully' };
   }
 }

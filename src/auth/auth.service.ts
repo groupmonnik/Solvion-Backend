@@ -6,13 +6,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '@/users/entities/user.entity';
 import { LoginDto } from './dto/login-auth.dto';
+import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
-    private userRepository: Repository<User>,
-    private jwtService: JwtService,
+    private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
+    private readonly encryptService: EncryptService,
   ) {}
 
   async generate(value: LoginPayload) {
@@ -27,20 +29,25 @@ export class AuthService {
       throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'password is incorrect');
     }
 
-    const acecssPayload = { sub: user.id, email: user.email };
-    const accessToken = this.jwtService.sign(acecssPayload);
+    const accessPayload = { sub: user.id, email: user.email };
+    const rawAccessToken = this.jwtService.sign(accessPayload);
 
     const refreshPayload = { sub: user.id };
-    const refreshToken = this.jwtService.sign(refreshPayload, {
+    const rawRefreshToken = this.jwtService.sign(refreshPayload, {
       expiresIn: '1d',
     });
+
+    const accessToken = this.encryptService.encrypt(rawAccessToken);
+    const refreshToken = this.encryptService.encrypt(rawRefreshToken);
 
     return { accessToken, refreshToken };
   }
 
-  async refreshToken(refrehToken: string) {
+  async refreshToken(refreshToken: string) {
     try {
-      const user = await this.verify(refrehToken);
+      const decryptedRefresh = this.encryptService.decrypt(refreshToken);
+
+      const user = await this.verify(decryptedRefresh);
 
       if (!user) {
         throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid refresh token');

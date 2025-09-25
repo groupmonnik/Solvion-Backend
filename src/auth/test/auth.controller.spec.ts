@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthController } from '../auth.controller';
-import { AuthService } from '../auth.service';
-import { LoginDto } from '../dto/login-auth.dto';
+import { AuthController } from '@/auth/auth.controller';
+import { AuthService } from '@/auth/auth.service';
+import { LoginDto } from '@/auth/dto/login-auth.dto';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { HttpStatus, UnauthorizedException } from '@nestjs/common';
 import request, { Response } from 'supertest';
@@ -45,7 +45,7 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('/auth/login (POST)', () => {
-    it('deve retornar accessToken e setar refreshToken no cookie', async () => {
+    it('deve retornar mensagem e setar cookies de accessToken e refreshToken', async () => {
       const dto: LoginDto = { email: 'test@test.com', password: '123' };
       authService.generate.mockResolvedValue({
         accessToken: 'access-token',
@@ -57,13 +57,20 @@ describe('AuthController (e2e)', () => {
         .send(dto)
         .expect(HttpStatus.OK);
 
-      expect(response.body).toEqual({ accessToken: 'access-token' });
+      // body só mensagem
+      expect(response.body).toEqual({
+        message: 'login successfully',
+      });
+
+      // cookies devem existir
       expect(response.headers['set-cookie']).toBeDefined();
+      expect(response.headers['set-cookie'][0]).toContain('accessToken=');
+      expect(response.headers['set-cookie'][1]).toContain('refreshToken=');
     });
   });
 
   describe('/auth/refresh (POST)', () => {
-    it('deve retornar novo accessToken e atualizar refreshToken', async () => {
+    it('deve retornar novo accessToken e refreshToken e atualizar cookies', async () => {
       authService.refreshToken.mockResolvedValue({
         accessToken: 'new-access',
         refreshToken: 'new-refresh',
@@ -74,7 +81,7 @@ describe('AuthController (e2e)', () => {
         .set('Cookie', 'refreshToken=old-refresh')
         .expect(HttpStatus.OK);
 
-      expect(response.body).toEqual({ accessToken: 'new-access' });
+      expect(response.body).toEqual({ message: 'new tokens generated' });
       expect(response.headers['set-cookie']).toBeDefined();
       expect(authService.refreshToken).toHaveBeenCalledWith('old-refresh');
     });
@@ -84,16 +91,20 @@ describe('AuthController (e2e)', () => {
         .post('/auth/refresh')
         .expect(HttpStatus.UNAUTHORIZED);
 
-      expect(response.body).toEqual({ message: 'No refresh token provided' });
+      expect(response.body).toMatchObject({
+        message: 'No refresh token provided',
+      });
     });
 
     it('deve retornar 401 se o refreshToken vier vazio', async () => {
-      const response: Response = await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .post('/auth/refresh')
-        .set('Cookie', 'refreshToken=') // cookie vazio
+        .set('Cookie', 'refreshToken=')
         .expect(HttpStatus.UNAUTHORIZED);
 
-      expect(response.body).toEqual({ message: 'No refresh token provided' });
+      expect(response.body).toMatchObject({
+        message: 'No refresh token provided',
+      });
     });
 
     it('deve retornar 401 se o refreshToken for inválido (AuthService lançar erro)', async () => {
@@ -108,25 +119,22 @@ describe('AuthController (e2e)', () => {
 
       expect(response.body).toHaveProperty('message', 'Invalid refresh token');
     });
-
-    it('deve retornar 401 se o refreshToken vier vazio', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/auth/refresh')
-        .set('Cookie', 'refreshToken=') // cookie presente mas vazio
-        .expect(HttpStatus.UNAUTHORIZED);
-
-      expect(response.body).toEqual({ message: 'No refresh token provided' });
-    });
   });
 
   describe('/auth/logout (POST)', () => {
-    it('deve limpar o cookie e retornar mensagem de sucesso', async () => {
+    it('deve limpar os cookies de accessToken e refreshToken e retornar mensagem', async () => {
       const response: Response = await request(app.getHttpServer())
         .post('/auth/logout')
         .expect(HttpStatus.OK);
 
       expect(response.body).toEqual({ message: 'Logged out successfully' });
       expect(response.headers['set-cookie']).toBeDefined();
+
+      const rawCookies = response.headers['set-cookie'];
+      const cookies = Array.isArray(rawCookies) ? rawCookies.join(';') : rawCookies;
+
+      expect(cookies).toContain('accessToken=');
+      expect(cookies).toContain('refreshToken=');
     });
   });
 });

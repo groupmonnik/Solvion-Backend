@@ -1,41 +1,23 @@
-import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { ExecutionContext, Injectable } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
-import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
-import { FastifyRequest } from 'fastify';
 
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
-  constructor(
-    private reflector: Reflector,
-    private authService: AuthService,
-  ) {}
+export class JwtAuthGuard extends AuthGuard('AccessTokenJwt') {
+  constructor(private reflector: Reflector) {
+    super();
+  }
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const IsPublic = this.reflector.getAllAndOverride<boolean>('IsPublic', [
+  canActivate(context: ExecutionContext) {
+    const isPublic = this.reflector.getAllAndOverride<boolean>('IsPublic', [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    if (IsPublic) {
+    if (isPublic) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<FastifyRequest>();
-    const authHeader = request.headers['authorization'];
-
-    if (!authHeader) {
-      throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'No token provided');
-    }
-
-    const token = authHeader.split(' ')[1];
-
-    try {
-      await this.authService.verify(token);
-    } catch {
-      throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid token');
-    }
-
-    return true;
+    return super.canActivate(context);
   }
 }

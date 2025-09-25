@@ -6,15 +6,27 @@ import { Repository } from 'typeorm';
 import { User } from '@/users/entities/user.entity';
 import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
 import { HttpStatus } from '@nestjs/common';
+import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
 
 describe('AuthService', () => {
   let service: AuthService;
   let mockUserRepo: jest.Mocked<Repository<User>>;
   let mockJwt: jest.Mocked<JwtService>;
 
+  // 🔹 mock do EncryptService inline
+  const mockEncryptService = {
+    hash: jest.fn().mockResolvedValue('hashed-password'),
+    compare: jest.fn().mockImplementation((password: string, hash: string) => {
+      return password === hash; // simulação simples
+    }),
+    encrypt: jest.fn().mockReturnValue('encrypted-token'),
+    decrypt: jest.fn().mockReturnValue('decrypted-token'),
+  };
+
   beforeEach(async () => {
     mockUserRepo = {
       findOne: jest.fn(),
+      save: jest.fn(),
     } as any;
 
     mockJwt = {
@@ -27,6 +39,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: JwtService, useValue: mockJwt },
+        { provide: EncryptService, useValue: mockEncryptService },
       ],
     }).compile();
 
@@ -39,6 +52,7 @@ describe('AuthService', () => {
       const mockUser = { id: 1, email: 'test@test.com', password: '123' } as User;
       mockUserRepo.findOne.mockResolvedValue(mockUser);
       mockJwt.sign.mockReturnValueOnce('access-token').mockReturnValueOnce('refresh-token');
+      jest.spyOn(mockEncryptService, 'compare').mockResolvedValue(true);
 
       const result = await service.generate({ email: 'test@test.com', password: '123' });
 
@@ -57,6 +71,7 @@ describe('AuthService', () => {
     it('deve lançar BAD_REQUEST se senha for incorreta', async () => {
       const mockUser = { id: 1, email: 'test@test.com', password: '123' } as User;
       mockUserRepo.findOne.mockResolvedValue(mockUser);
+      jest.spyOn(mockEncryptService, 'compare').mockResolvedValue(false);
 
       await expect(service.generate({ email: 'test@test.com', password: 'wrong' })).rejects.toThrow(
         new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'password is incorrect'),
@@ -97,6 +112,14 @@ describe('AuthService', () => {
       });
 
       await expect(service.refreshToken('token')).rejects.toBe(customError);
+    });
+
+    it('deve lançar UNAUTHORIZED se verify retornar null', async () => {
+      jest.spyOn(service, 'verify').mockResolvedValue(null as unknown as User);
+
+      await expect(service.refreshToken('null-token')).rejects.toThrow(
+        new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid refresh token'),
+      );
     });
   });
 
@@ -153,7 +176,6 @@ describe('AuthService', () => {
       await expect(service.verify('token')).rejects.toBe(customError);
     });
 
-    // ✅ Novo teste que cobre o branch "catch (error instanceof HttpExceptionCustom)"
     it('deve capturar e relançar HttpExceptionCustom no catch', async () => {
       const customError = new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'jwt expired');
       mockJwt.verify.mockImplementation(() => {
@@ -161,13 +183,6 @@ describe('AuthService', () => {
       });
 
       await expect(service.verify('expired-token')).rejects.toBe(customError);
-    });
-    it('deve lançar UNAUTHORIZED se verify retornar null', async () => {
-      jest.spyOn(service, 'verify').mockResolvedValue(null as unknown as User);
-
-      await expect(service.refreshToken('null-token')).rejects.toThrow(
-        new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid refresh token'),
-      );
     });
   });
 });
