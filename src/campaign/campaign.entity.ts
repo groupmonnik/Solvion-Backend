@@ -9,6 +9,12 @@ export class Campaign {
   id: number;
 
   @Column()
+  accountType: 'Meta' | 'Google';
+
+  @Column()
+  accountId: number;
+
+  @Column()
   name: string;
 
   @Column()

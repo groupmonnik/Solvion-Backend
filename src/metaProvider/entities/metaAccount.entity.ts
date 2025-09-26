@@ -6,8 +6,10 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Campaign } from '@/campaign/campaign.entity';
 
 @Entity()
 export class MetaAccount {
@@ -51,6 +53,9 @@ export class MetaAccount {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => Campaign, campaign => campaign.accountId)
+  campaigns: Campaign[];
 
   @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
