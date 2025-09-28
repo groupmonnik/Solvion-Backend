@@ -1,12 +1,17 @@
 import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { LoginPayload } from './service/payload/login-auth-payload.type';
+import { GenerateTokenPayload } from './service/payload/generate-token-payload.type';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '@/users/entities/user.entity';
-import { LoginDto } from './dto/login-auth.dto';
 import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
+import accessTokenJwtConfig from './config/access-token-jwt.config';
+import * as config from '@nestjs/config';
+import refreshTokenJwtConfig from './config/refresh-token-jwt.config';
+import { VerifyTokenPayload } from './service/payload/verify-token-payload.type';
+import { JwtPayload } from './service/payload/jwt-payload.type';
+import { compare } from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -15,27 +20,31 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly encryptService: EncryptService,
+    @Inject(accessTokenJwtConfig.KEY)
+    private readonly accessTokenConfiguration: config.ConfigType<typeof accessTokenJwtConfig>,
+    @Inject(refreshTokenJwtConfig.KEY)
+    private readonly refreshTokenConfiguration: config.ConfigType<typeof refreshTokenJwtConfig>,
   ) {}
 
-  async generate(value: LoginPayload) {
-    const { email, password } = value;
-    const user = await this.userRepository.findOne({ where: { email } });
+  async generateTokens(payload: GenerateTokenPayload) {
+    const user = await this.userRepository.findOne({
+      where: { email: payload.email },
+    });
 
     if (!user) {
       throw new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'user not found');
     }
 
-    if (user.password !== password) {
-      throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'password is incorrect');
+    const isPasswordValid = await compare(payload.password, user.password);
+    if (!isPasswordValid) {
+      throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is incorrect');
     }
 
     const accessPayload = { sub: user.id, email: user.email };
-    const rawAccessToken = this.jwtService.sign(accessPayload);
+    const rawAccessToken = this.jwtService.sign(accessPayload, this.accessTokenConfiguration);
 
     const refreshPayload = { sub: user.id };
-    const rawRefreshToken = this.jwtService.sign(refreshPayload, {
-      expiresIn: '1d',
-    });
+    const rawRefreshToken = this.jwtService.sign(refreshPayload, this.refreshTokenConfiguration);
 
     const accessToken = this.encryptService.encrypt(rawAccessToken);
     const refreshToken = this.encryptService.encrypt(rawRefreshToken);
@@ -47,18 +56,16 @@ export class AuthService {
     try {
       const decryptedRefresh = this.encryptService.decrypt(refreshToken);
 
-      const user = await this.verify(decryptedRefresh);
+      const user = await this.verifyToken({ token: decryptedRefresh }, true);
 
       if (!user) {
         throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid refresh token');
       }
 
-      const value: LoginDto = {
+      return this.generateTokens({
         email: user.email,
         password: user.password,
-      };
-
-      return this.generate(value);
+      });
     } catch (error) {
       if (error instanceof HttpExceptionCustom) {
         throw error;
@@ -67,13 +74,18 @@ export class AuthService {
     }
   }
 
-  async verify(token: string) {
+  async verifyToken(payload: VerifyTokenPayload, isRefresh = false) {
     try {
-      const decoded: { sub: number; [key: string]: any } = this.jwtService.verify(token);
-      const user = await this.userRepository.findOne({ where: { id: decoded.sub } });
-      if (!user) {
-        throw new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'User not found');
-      }
+      const decoded = this.jwtService.verify<JwtPayload>(payload.token, {
+        secret: isRefresh
+          ? this.refreshTokenConfiguration.secret
+          : this.accessTokenConfiguration.secret,
+      });
+
+      const user = await this.userRepository.findOne({
+        where: { id: decoded.sub ?? -1 },
+      });
+
       return user;
     } catch (error) {
       if (error instanceof HttpExceptionCustom) {

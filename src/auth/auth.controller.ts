@@ -27,7 +27,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: FastifyReply) {
-    const { accessToken, refreshToken } = await this.authService.generate(loginDto);
+    const { accessToken, refreshToken } = await this.authService.generateTokens(loginDto);
 
     setAuthCookie(res, accessToken, refreshToken);
 
@@ -52,8 +52,16 @@ export class AuthController {
       return res.status(HttpStatus.UNAUTHORIZED).send({ message: 'No refresh token provided' });
     }
 
-    const { accessToken, refreshToken: newRefreshToken } =
-      await this.authService.refreshToken(refreshToken);
+    const unsigned = req.unsignCookie(refreshToken);
+    if (!unsigned.valid || !unsigned.value) {
+      return res
+        .status(HttpStatus.UNAUTHORIZED)
+        .send({ message: 'Invalid refresh token signature' });
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = await this.authService.refreshToken(
+      unsigned.value,
+    );
 
     setAuthCookie(res, accessToken, newRefreshToken);
 

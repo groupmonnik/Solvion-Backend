@@ -6,6 +6,7 @@ export function setAuthCookie(res: FastifyReply, accessToken: string, refreshTok
     httpOnly: true,
     secure: false,
     sameSite: 'strict',
+    signed: true,
     path: '/',
     maxAge: dayjs.duration(15, 'minute').asMilliseconds(),
   });
@@ -13,8 +14,9 @@ export function setAuthCookie(res: FastifyReply, accessToken: string, refreshTok
   res.setCookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: false,
-    path: '/',
     sameSite: 'strict',
+    signed: true,
+    path: '/',
     maxAge: dayjs.duration(1, 'day').asMilliseconds(),
   });
 }
