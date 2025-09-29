@@ -13,6 +13,7 @@ import { FindAllUsersReturn } from './types/service/return/find-all-users-return
 import { FindUserByIdReturn } from './types/service/return/find-user-by-id-return.type';
 import { UpdateUserReturn } from './types/service/return/update-user-return.type';
 import { RemoveUserReturn } from './types/service/return/remove-user-return.type';
+import { PasswordService } from '@/common/encrypt/password.service';
 
 @Injectable()
 export class UsersService {
@@ -22,7 +23,8 @@ export class UsersService {
   ) {}
 
   async createUser(payload: CreateUserPayload): Promise<CreateUserReturn> {
-    const createUserResult = this.usersRepository.create(payload);
+    const hashedPassword = await PasswordService.hashPassword(payload.password);
+    const createUserResult = this.usersRepository.create({ ...payload, password: hashedPassword });
     return await this.usersRepository.save(createUserResult);
   }
 

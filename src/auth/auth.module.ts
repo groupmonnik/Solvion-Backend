@@ -7,7 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '@/users/entities/user.entity';
 import { EncryptService } from '../common/encrypt/encrypt.service.auth';
 import { PassportModule } from '@nestjs/passport';
-import { AccessTokenJwtStrategy } from './strategies/acces-token-jwt-strategy.auth';
+import { AccessTokenJwtStrategy } from './strategies/access-token-jwt-strategy.auth';
 import accessTokenJwtConfig from './config/access-token-jwt.config';
 import refreshTokenJwtConfig from './config/refresh-token-jwt.config';
 

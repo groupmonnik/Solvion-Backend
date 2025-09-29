@@ -1,188 +1,259 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from '../auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { AuthService } from '@/auth/auth.service';
 import { Repository } from 'typeorm';
 import { User } from '@/users/entities/user.entity';
+import { JwtService } from '@nestjs/jwt';
+import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
 import { HttpStatus } from '@nestjs/common';
-import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
+import { PasswordService } from '@/common/encrypt/password.service';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let mockUserRepo: jest.Mocked<Repository<User>>;
-  let mockJwt: jest.Mocked<JwtService>;
+  let userRepository: jest.Mocked<Repository<User>>;
+  let jwtService: jest.Mocked<JwtService>;
+  let encryptService: jest.Mocked<EncryptService>;
 
-  // 🔹 mock do EncryptService inline
-  const mockEncryptService = {
-    hash: jest.fn().mockResolvedValue('hashed-password'),
-    compare: jest.fn().mockImplementation((password: string, hash: string) => {
-      return password === hash; // simulação simples
-    }),
-    encrypt: jest.fn().mockReturnValue('encrypted-token'),
-    decrypt: jest.fn().mockReturnValue('decrypted-token'),
-  };
+  const mockUser: User = {
+    id: 1,
+    email: 'test@example.com',
+    password: 'hashed-password',
+  } as User;
 
   beforeEach(async () => {
-    mockUserRepo = {
-      findOne: jest.fn(),
-      save: jest.fn(),
-    } as any;
-
-    mockJwt = {
-      sign: jest.fn(),
-      verify: jest.fn(),
-    } as any;
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: getRepositoryToken(User), useValue: mockUserRepo },
-        { provide: JwtService, useValue: mockJwt },
-        { provide: EncryptService, useValue: mockEncryptService },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            sign: jest.fn(),
+            verify: jest.fn(),
+          },
+        },
+        {
+          provide: EncryptService,
+          useValue: {
+            encrypt: jest.fn(),
+            decrypt: jest.fn(),
+          },
+        },
+        {
+          provide: 'CONFIGURATION(accessTokenJwt)',
+          useValue: { secret: 'test-access-secret', expiresIn: '15m' },
+        },
+        {
+          provide: 'CONFIGURATION(refreshTokenJwt)',
+          useValue: { secret: 'test-refresh-secret', expiresIn: '7d' },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
+    userRepository = module.get(getRepositoryToken(User));
+    jwtService = module.get(JwtService);
+    encryptService = module.get(EncryptService);
   });
-
-  // ---------- generate ----------
-  describe('generate', () => {
-    it('deve gerar accessToken e refreshToken quando credenciais forem válidas', async () => {
-      const mockUser = { id: 1, email: 'test@test.com', password: '123' } as User;
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-      mockJwt.sign.mockReturnValueOnce('access-token').mockReturnValueOnce('refresh-token');
-      jest.spyOn(mockEncryptService, 'compare').mockResolvedValue(true);
-
-      const result = await service.generate({ email: 'test@test.com', password: '123' });
-
-      expect(result).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
-      expect(mockJwt.sign).toHaveBeenCalledTimes(2);
-    });
-
-    it('deve lançar NOT_FOUND se usuário não existir', async () => {
-      mockUserRepo.findOne.mockResolvedValue(null);
-
-      await expect(service.generate({ email: 'nao@existe.com', password: '123' })).rejects.toThrow(
-        new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'user not found'),
-      );
-    });
-
-    it('deve lançar BAD_REQUEST se senha for incorreta', async () => {
-      const mockUser = { id: 1, email: 'test@test.com', password: '123' } as User;
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-      jest.spyOn(mockEncryptService, 'compare').mockResolvedValue(false);
-
-      await expect(service.generate({ email: 'test@test.com', password: 'wrong' })).rejects.toThrow(
-        new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'password is incorrect'),
-      );
+  describe('AuthService - configurações', () => {
+    it('deve expor corretamente a configuração do access token', () => {
+      expect(service['accessTokenConfiguration']).toEqual({
+        secret: 'test-access-secret',
+        expiresIn: '15m',
+      });
     });
   });
 
-  // ---------- refreshToken ----------
+  describe('generateTokens', () => {
+    it('deve gerar access e refresh tokens válidos', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      jest.spyOn(PasswordService, 'verifyPassword').mockResolvedValue(true);
+      jwtService.sign.mockReturnValueOnce('rawAccess').mockReturnValueOnce('rawRefresh');
+      encryptService.encrypt.mockImplementation(t => `encrypted-${t}`);
+
+      const result = await service.generateTokens({
+        email: mockUser.email,
+        password: 'valid-password',
+      });
+
+      expect(result).toEqual({
+        accessToken: 'encrypted-rawAccess',
+        refreshToken: 'encrypted-rawRefresh',
+      });
+      expect(jwtService.sign).toHaveBeenCalledTimes(2);
+    });
+
+    it('deve lançar erro se usuário não for encontrado', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.generateTokens({ email: 'no-user@example.com', password: '123' }),
+      ).rejects.toThrow(new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'user not found'));
+    });
+
+    it('deve lançar erro se senha não for passada no login normal', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+
+      await expect(
+        service.generateTokens({ email: mockUser.email, password: undefined }),
+      ).rejects.toThrow(
+        new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is required'),
+      );
+    });
+
+    it('deve lançar erro se a senha estiver incorreta', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      jest.spyOn(PasswordService, 'verifyPassword').mockResolvedValue(false);
+
+      await expect(
+        service.generateTokens({ email: mockUser.email, password: 'wrong' }),
+      ).rejects.toThrow(
+        new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is incorrect'),
+      );
+    });
+
+    it('não deve validar senha se for refresh token', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      jwtService.sign.mockReturnValueOnce('rawAccess').mockReturnValueOnce('rawRefresh');
+      encryptService.encrypt.mockImplementation(t => `encrypted-${t}`);
+
+      const result = await service.generateTokens({
+        email: mockUser.email,
+        password: undefined,
+        isRefresh: true,
+      });
+
+      expect(result.accessToken).toContain('encrypted-rawAccess');
+      expect(result.refreshToken).toContain('encrypted-rawRefresh');
+    });
+    it('deve gerar tokens válidos no login normal com senha correta', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      jest.spyOn(PasswordService, 'verifyPassword').mockResolvedValue(true);
+      jwtService.sign.mockReturnValueOnce('rawAccess').mockReturnValueOnce('rawRefresh');
+      encryptService.encrypt.mockImplementation(t => `encrypted-${t}`);
+
+      const result = await service.generateTokens({
+        email: mockUser.email,
+        password: 'valid-password',
+      });
+
+      expect(result.accessToken).toBe('encrypted-rawAccess');
+      expect(result.refreshToken).toBe('encrypted-rawRefresh');
+    });
+  });
+
   describe('refreshToken', () => {
-    it('deve chamar verify e retornar novos tokens', async () => {
-      const mockUser = { id: 1, email: 'test@test.com', password: '123' } as User;
-
-      jest.spyOn(service, 'verify').mockResolvedValue(mockUser);
-      jest.spyOn(service, 'generate').mockResolvedValue({
-        accessToken: 'new-access',
-        refreshToken: 'new-refresh',
+    it('deve renovar tokens com refresh token válido', async () => {
+      encryptService.decrypt.mockReturnValue('decrypted-refresh');
+      jwtService.verify.mockReturnValue({ sub: 1, email: mockUser.email });
+      userRepository.findOne.mockResolvedValue(mockUser);
+      jest.spyOn(service, 'generateTokens').mockResolvedValue({
+        accessToken: 'newAccess',
+        refreshToken: 'newRefresh',
       });
 
-      const result = await service.refreshToken('refresh-token');
-      expect(service.verify).toHaveBeenCalledWith('refresh-token');
-      expect(service.generate).toHaveBeenCalledWith({ email: 'test@test.com', password: '123' });
-      expect(result).toEqual({ accessToken: 'new-access', refreshToken: 'new-refresh' });
+      const result = await service.refreshToken('any-refresh');
+
+      expect(result).toEqual({ accessToken: 'newAccess', refreshToken: 'newRefresh' });
+    });
+    it('deve retornar null quando decoded.sub for undefined (forçando -1)', async () => {
+      jwtService.verify.mockReturnValue({ sub: undefined });
+      userRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.verifyToken({ token: 'no-sub', isRefresh: false });
+
+      expect(userRepository.findOne).toHaveBeenCalledWith({ where: { id: -1 } });
+      expect(result).toBeNull();
     });
 
-    it('deve lançar UNAUTHORIZED se verify lançar erro inesperado', async () => {
-      jest.spyOn(service, 'verify').mockImplementation(() => {
-        throw new Error('invalid token');
-      });
+    it('deve lançar erro se o usuário não for encontrado no refresh', async () => {
+      encryptService.decrypt.mockReturnValue('decrypted-refresh');
+      jwtService.verify.mockReturnValue({ sub: 99 });
+      userRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.refreshToken('bad-token')).rejects.toThrow(HttpExceptionCustom);
-      await expect(service.refreshToken('bad-token')).rejects.toThrow('Invalid refresh token');
-    });
-
-    it('deve relançar erro se for HttpExceptionCustom', async () => {
-      const customError = new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'User not found');
-      jest.spyOn(service, 'verify').mockImplementation(() => {
-        throw customError;
-      });
-
-      await expect(service.refreshToken('token')).rejects.toBe(customError);
-    });
-
-    it('deve lançar UNAUTHORIZED se verify retornar null', async () => {
-      jest.spyOn(service, 'verify').mockResolvedValue(null as unknown as User);
-
-      await expect(service.refreshToken('null-token')).rejects.toThrow(
+      await expect(service.refreshToken('invalid-refresh')).rejects.toThrow(
         new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid refresh token'),
       );
     });
+
+    it('deve relançar HttpExceptionCustom se decrypt lançar esse erro', async () => {
+      encryptService.decrypt.mockImplementation(() => {
+        throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'forced error');
+      });
+
+      await expect(service.refreshToken('invalid-refresh')).rejects.toThrow(HttpExceptionCustom);
+    });
+
+    it('deve lançar HttpExceptionCustom genérico se decrypt lançar erro normal', async () => {
+      encryptService.decrypt.mockImplementation(() => {
+        throw new Error('decrypt failed');
+      });
+
+      await expect(service.refreshToken('invalid-refresh')).rejects.toThrow(
+        new HttpExceptionCustom(
+          { error: expect.any(Error) },
+          HttpStatus.UNAUTHORIZED,
+          'Invalid refresh token',
+        ),
+      );
+    });
   });
 
-  // ---------- verify ----------
-  describe('verify', () => {
-    it('deve retornar usuário válido quando token for válido', async () => {
-      const mockUser = { id: 1, email: 'test@test.com', password: '123' } as User;
+  describe('verifyToken', () => {
+    it('deve retornar o usuário válido com access token', async () => {
+      jwtService.verify.mockReturnValue({ sub: 1 });
+      userRepository.findOne.mockResolvedValue(mockUser);
 
-      mockJwt.verify.mockReturnValue({ sub: 1 });
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      const result = await service.verifyToken({ token: 'access', isRefresh: false });
 
-      const result = await service.verify('valid-token');
       expect(result).toEqual(mockUser);
     });
 
-    it('deve lançar NOT_FOUND se usuário não existir', async () => {
-      mockJwt.verify.mockReturnValue({ sub: 1 });
-      mockUserRepo.findOne.mockResolvedValue(null);
+    it('deve retornar o usuário válido com refresh token', async () => {
+      jwtService.verify.mockReturnValue({ sub: 1 });
+      userRepository.findOne.mockResolvedValue(mockUser);
 
-      await expect(service.verify('token')).rejects.toThrow(
-        new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'User not found'),
+      const result = await service.verifyToken({ token: 'refresh', isRefresh: true });
+
+      expect(result).toEqual(mockUser);
+    });
+
+    it('deve relançar HttpExceptionCustom se verify lançar esse erro', async () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'forced error');
+      });
+
+      await expect(service.verifyToken({ token: 'invalid', isRefresh: false })).rejects.toThrow(
+        HttpExceptionCustom,
       );
     });
 
-    it('deve lançar INTERNAL_SERVER_ERROR se ocorrer erro inesperado (Error)', async () => {
-      mockJwt.verify.mockImplementation(() => {
-        throw new Error('Erro inesperado');
+    it('deve lançar HttpExceptionCustom genérico se verify lançar erro normal', async () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('verify failed');
       });
 
-      await expect(service.verify('token')).rejects.toThrow(HttpExceptionCustom);
-      await expect(service.verify('token')).rejects.toThrow('Internal Server Error');
+      await expect(service.verifyToken({ token: 'invalid', isRefresh: false })).rejects.toThrow(
+        new HttpExceptionCustom(
+          { error: expect.any(Error) },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          'Internal Server Error',
+        ),
+      );
     });
+    it('deve retornar null se o token for válido mas o usuário não existir', async () => {
+      jwtService.verify.mockReturnValue({ sub: 1 });
+      userRepository.findOne.mockResolvedValue(null);
 
-    it('deve lançar INTERNAL_SERVER_ERROR mesmo se o erro for cru (string)', async () => {
-      mockJwt.verify.mockImplementation(() => {
-        throw 'erro cru' as unknown;
-      });
+      const result = await service.verifyToken({ token: 'valid', isRefresh: false });
 
-      try {
-        await service.verify('token');
-      } catch (err: unknown) {
-        expect(err).toBeInstanceOf(HttpExceptionCustom);
-        expect((err as HttpExceptionCustom).getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
-        expect((err as HttpExceptionCustom).message).toBe('Internal Server Error');
-      }
-    });
-
-    it('deve relançar o erro se já for uma instância de HttpExceptionCustom', async () => {
-      const customError = new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'custom');
-      mockJwt.verify.mockImplementation(() => {
-        throw customError;
-      });
-
-      await expect(service.verify('token')).rejects.toBe(customError);
-    });
-
-    it('deve capturar e relançar HttpExceptionCustom no catch', async () => {
-      const customError = new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'jwt expired');
-      mockJwt.verify.mockImplementation(() => {
-        throw customError;
-      });
-
-      await expect(service.verify('expired-token')).rejects.toBe(customError);
+      expect(result).toBeNull();
     });
   });
 });

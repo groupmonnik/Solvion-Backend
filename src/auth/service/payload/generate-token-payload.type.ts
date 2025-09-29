@@ -1,4 +1,5 @@
 export type GenerateTokenPayload = {
   email: string;
-  password: string;
+  password?: string;
+  isRefresh?: boolean;
 };

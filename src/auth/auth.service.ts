@@ -11,7 +11,7 @@ import * as config from '@nestjs/config';
 import refreshTokenJwtConfig from './config/refresh-token-jwt.config';
 import { VerifyTokenPayload } from './service/payload/verify-token-payload.type';
 import { JwtPayload } from './service/payload/jwt-payload.type';
-import { compare } from 'bcrypt';
+import { PasswordService } from '@/common/encrypt/password.service';
 
 @Injectable()
 export class AuthService {
@@ -35,9 +35,15 @@ export class AuthService {
       throw new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'user not found');
     }
 
-    const isPasswordValid = await compare(payload.password, user.password);
-    if (!isPasswordValid) {
-      throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is incorrect');
+    if (!payload.isRefresh) {
+      if (!payload.password) {
+        throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is required');
+      }
+
+      const isPasswordValid = await PasswordService.verifyPassword(payload.password, user.password);
+      if (!isPasswordValid) {
+        throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is incorrect');
+      }
     }
 
     const accessPayload = { sub: user.id, email: user.email };
@@ -56,7 +62,7 @@ export class AuthService {
     try {
       const decryptedRefresh = this.encryptService.decrypt(refreshToken);
 
-      const user = await this.verifyToken({ token: decryptedRefresh }, true);
+      const user = await this.verifyToken({ token: decryptedRefresh, isRefresh: true });
 
       if (!user) {
         throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid refresh token');
@@ -65,6 +71,7 @@ export class AuthService {
       return this.generateTokens({
         email: user.email,
         password: user.password,
+        isRefresh: true,
       });
     } catch (error) {
       if (error instanceof HttpExceptionCustom) {
@@ -74,10 +81,10 @@ export class AuthService {
     }
   }
 
-  async verifyToken(payload: VerifyTokenPayload, isRefresh = false) {
+  async verifyToken(payload: VerifyTokenPayload) {
     try {
       const decoded = this.jwtService.verify<JwtPayload>(payload.token, {
-        secret: isRefresh
+        secret: payload.isRefresh
           ? this.refreshTokenConfiguration.secret
           : this.accessTokenConfiguration.secret,
       });
