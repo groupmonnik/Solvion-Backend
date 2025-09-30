@@ -3,6 +3,9 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class EncryptService {
+  hashPassword(arg0: string) {
+    throw new Error('Method not implemented.');
+  }
   private readonly ALGORITHM = 'aes-256-cbc';
   private readonly key = Buffer.from(process.env.CRYPTO_KEY!, 'hex'); // 32 bytes
 

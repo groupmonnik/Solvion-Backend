@@ -1,181 +1,187 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ValidationPipe, HttpStatus } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule, JwtService } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import request from 'supertest';
+import { AuthModule } from '@/auth/auth.module';
+import { User } from '@/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
-
 import { AuthService } from '@/auth/auth.service';
-import { User } from '@/users/entities/user.entity';
-import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
+import { LoginDto } from '@/auth/dto/login-auth.dto';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import cookieParser from '@fastify/cookie';
 import { PasswordService } from '@/common/encrypt/password.service';
-import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
+import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
+import * as cookieSignature from 'cookie-signature';
 
-import accessTokenJwtConfig from '@/auth/config/access-token-jwt.config';
-import refreshTokenJwtConfig from '@/auth/config/refresh-token-jwt.config';
-
-describe('AuthService (Integration)', () => {
-  let moduleRef: TestingModule;
-  let authService: AuthService;
+describe('AuthController (Integration)', () => {
+  let app: NestFastifyApplication;
   let userRepository: Repository<User>;
-  let encryptService: EncryptService;
-  let jwtService: JwtService;
-  let accessTokenConfig: { secret: string; expiresIn?: string };
-  let refreshTokenConfig: { secret: string; expiresIn?: string };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let authService: AuthService;
 
-  const plainPassword = 'SuperSecret123!';
-  let hashedPassword: string;
-  let testUser: User;
+  const COOKIE_SECRET = 'test-secret';
+  const DEFAULT_PASSWORD = 'Str0ngP@ssword!';
+
+  beforeAll(() => {
+    process.env.ACCESS_TOKEN_JWT_KEY = 'test-access-key';
+    process.env.ACCESS_TOKEN_JWT_EXPIRES_IN = '3600s';
+    process.env.REFRESH_TOKEN_JWT_KEY = 'test-refresh-key';
+    process.env.REFRESH_TOKEN_JWT_EXPIRES_IN = '7d';
+    process.env.CRYPTO_KEY = '10356586236241190c99852c49c3970e6e7b1f2f0f4a88cfe99bbfd3e61e4bd1';
+  });
 
   beforeAll(async () => {
-    hashedPassword = await PasswordService.hashPassword(plainPassword);
-
-    moduleRef = await Test.createTestingModule({
+    const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({
-          isGlobal: true,
-          load: [accessTokenJwtConfig, refreshTokenJwtConfig],
-        }),
-        JwtModule.register({}),
+        AuthModule,
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
           dropSchema: true,
           entities: [User],
           synchronize: true,
+          logging: false,
         }),
         TypeOrmModule.forFeature([User]),
       ],
-      providers: [AuthService, EncryptService],
-    }).compile();
+    })
+      .overrideProvider(EncryptService)
+      .useValue({
+        encrypt: (text: string) => text,
+        decrypt: (text: string) => text,
+        compare: (plain: string, hashed: string) => plain === hashed,
+      })
+      .compile();
 
-    authService = moduleRef.get(AuthService);
-    encryptService = moduleRef.get(EncryptService);
-    userRepository = moduleRef.get<Repository<User>>(getRepositoryToken(User));
-    jwtService = moduleRef.get(JwtService);
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.register(cookieParser as any, { secret: COOKIE_SECRET });
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
-    accessTokenConfig = moduleRef.get(accessTokenJwtConfig.KEY);
-    refreshTokenConfig = moduleRef.get(refreshTokenJwtConfig.KEY);
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+
+    userRepository = moduleFixture.get<Repository<User>>(getRepositoryToken(User));
+    authService = moduleFixture.get<AuthService>(AuthService);
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   beforeEach(async () => {
     await userRepository.clear();
-
-    testUser = userRepository.create({
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'test@example.com',
-      password: hashedPassword,
-    });
-
-    await userRepository.save(testUser);
   });
 
-  afterAll(async () => {
-    await moduleRef.close();
-  });
-  describe('generateTokens', () => {
-    it('deve gerar tokens válidos com senha correta', async () => {
-      const res = await authService.generateTokens({
-        email: testUser.email,
-        password: plainPassword,
-      });
-
-      expect(res).toHaveProperty('accessToken');
-      expect(res).toHaveProperty('refreshToken');
+  const createTestUser = async (email: string, password = DEFAULT_PASSWORD): Promise<User> => {
+    const hashed = await PasswordService.hashPassword(password);
+    const user = userRepository.create({
+      firstName: 'Test',
+      lastName: 'User',
+      email,
+      password: hashed,
     });
+    return await userRepository.save(user);
+  };
 
-    it('deve falhar se usuário não existir', async () => {
-      await expect(
-        authService.generateTokens({ email: 'noone@example.com', password: plainPassword }),
-      ).rejects.toBeInstanceOf(HttpExceptionCustom);
-    });
+  const loginAndGetRefreshCookie = async (
+    email: string,
+    password = DEFAULT_PASSWORD,
+  ): Promise<string | undefined> => {
+    const loginDto: LoginDto = { email, password };
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send(loginDto)
+      .expect(HttpStatus.OK);
 
-    it('deve falhar se senha não for passada (login normal)', async () => {
-      await expect(
-        authService.generateTokens({ email: testUser.email, password: undefined }),
-      ).rejects.toBeInstanceOf(HttpExceptionCustom);
-    });
+    const setCookieHeader: string[] | undefined = loginResponse.headers['set-cookie'] as unknown as
+      | string[]
+      | undefined;
+    if (!setCookieHeader) return undefined;
 
-    it('deve falhar se senha for incorreta', async () => {
-      await expect(
-        authService.generateTokens({ email: testUser.email, password: 'wrong-password' }),
-      ).rejects.toBeInstanceOf(HttpExceptionCustom);
-    });
+    const cookiesArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+    return cookiesArray.find(c => typeof c === 'string' && c.startsWith('refreshToken='));
+  };
 
-    it('não deve validar senha se for refresh token', async () => {
-      const res = await authService.generateTokens({
-        email: testUser.email,
-        isRefresh: true,
-      });
+  const getInvalidRefreshToken = (): string => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    return 's:' + cookieSignature.sign('invalidtoken', COOKIE_SECRET);
+  };
 
-      expect(res).toHaveProperty('accessToken');
-      expect(res).toHaveProperty('refreshToken');
-    });
-  });
-  describe('refreshToken', () => {
-    it('deve renovar tokens com refresh válido', async () => {
-      const tokens = await authService.generateTokens({
-        email: testUser.email,
-        password: plainPassword,
-      });
+  it('should login a user and set cookies', async () => {
+    const user = await createTestUser('john@example.com');
 
-      const result = await authService.refreshToken(tokens.refreshToken);
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
-    });
+    const loginDto: LoginDto = { email: user.email, password: DEFAULT_PASSWORD };
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send(loginDto)
+      .expect(HttpStatus.OK);
 
-    it('deve falhar se refresh pertencer a usuário inexistente', async () => {
-      const fakeRaw = jwtService.sign({ sub: 9999 }, { secret: refreshTokenConfig.secret });
-      const encrypted = encryptService.encrypt(fakeRaw);
-
-      await expect(authService.refreshToken(encrypted)).rejects.toBeInstanceOf(HttpExceptionCustom);
-    });
-
-    it('deve falhar se decrypt lançar erro genérico', async () => {
-      const spy = jest.spyOn(encryptService, 'decrypt').mockImplementation(() => {
-        throw new Error('forced decrypt error');
-      });
-
-      await expect(authService.refreshToken('whatever')).rejects.toBeInstanceOf(
-        HttpExceptionCustom,
-      );
-
-      spy.mockRestore();
-    });
+    expect(response.body).toEqual({ message: 'login successfully' });
+    expect(response.headers['set-cookie']).toBeDefined();
   });
 
-  describe('verifyToken', () => {
-    it('deve retornar o usuário válido com access token', async () => {
-      const raw = jwtService.sign({ sub: testUser.id }, { secret: accessTokenConfig.secret });
-      const result = await authService.verifyToken({ token: raw, isRefresh: false });
-      expect(result).not.toBeNull();
-      expect(result?.email).toBe(testUser.email);
-    });
+  it('should fail login with incorrect password', async () => {
+    await createTestUser('john2@example.com');
 
-    it('deve retornar o usuário válido com refresh token', async () => {
-      const raw = jwtService.sign({ sub: testUser.id }, { secret: refreshTokenConfig.secret });
-      const result = await authService.verifyToken({ token: raw, isRefresh: true });
-      expect(result).not.toBeNull();
-      expect(result?.id).toBe(testUser.id);
-    });
+    const loginDto: LoginDto = { email: 'john2@example.com', password: 'WrongP@ss1!' };
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send(loginDto)
+      .expect(HttpStatus.BAD_REQUEST);
 
-    it('deve retornar null se sub for undefined (decoded.sub ?? -1)', async () => {
-      const raw = jwtService.sign({}, { secret: accessTokenConfig.secret });
-      const result = await authService.verifyToken({ token: raw, isRefresh: false });
-      expect(result).toBeNull();
-    });
+    expect((response.body as { message: string }).message).toEqual('Password is incorrect');
+  });
 
-    it('deve retornar null se usuário não existir', async () => {
-      const raw = jwtService.sign({ sub: 9999 }, { secret: accessTokenConfig.secret });
-      const result = await authService.verifyToken({ token: raw, isRefresh: false });
-      expect(result).toBeNull();
-    });
+  it('should fail login with non-existent user', async () => {
+    const loginDto: LoginDto = { email: 'notfound@example.com', password: 'AnyPass123!' };
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send(loginDto)
+      .expect(HttpStatus.NOT_FOUND);
 
-    it('deve lançar erro genérico se token for inválido', async () => {
-      await expect(
-        authService.verifyToken({ token: 'this-is-not-a-token', isRefresh: false }),
-      ).rejects.toBeInstanceOf(HttpExceptionCustom);
-    });
+    expect((response.body as { message: string }).message).toEqual('user not found');
+  });
+
+  it('should refresh token if valid refresh token is provided', async () => {
+    const user = await createTestUser('jane@example.com');
+    const refreshCookie = await loginAndGetRefreshCookie(user.email);
+    expect(refreshCookie).toBeDefined();
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', [refreshCookie as string])
+      .expect(HttpStatus.OK);
+
+    expect(response.body).toEqual({ message: 'new tokens generated' });
+    expect(response.headers['set-cookie']).toBeDefined();
+  });
+
+  it('should fail refresh when no refresh token is provided', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .expect(HttpStatus.UNAUTHORIZED);
+
+    expect(response.body).toEqual({ message: 'No refresh token provided' });
+  });
+
+  it('should fail refresh with invalid refresh token', async () => {
+    const invalidToken = getInvalidRefreshToken();
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', [`refreshToken=${invalidToken}`])
+      .expect(HttpStatus.UNAUTHORIZED);
+
+    expect((response.body as { message: string }).message).toEqual(
+      'Invalid refresh token signature',
+    );
+  });
+
+  it('should logout and clear cookies', async () => {
+    const response = await request(app.getHttpServer()).post('/auth/logout').expect(HttpStatus.OK);
+
+    expect(response.body).toEqual({ message: 'Logged out successfully' });
+    expect(response.headers['set-cookie']).toBeDefined();
   });
 });
