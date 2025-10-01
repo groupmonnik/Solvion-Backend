@@ -7,6 +7,9 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { clearAuthCookie, setAuthCookie } from '@/common/utils/cookies.util';
+import { LoginResponse } from './types/controller/responses/login-response.type';
+import { RefreshResponse } from './types/controller/responses/refresh-response.type';
+import type { LogoutResponse } from './types/controller/responses/logout-response.type';
 
 dayjs.extend(duration);
 
@@ -26,12 +29,20 @@ export class AuthController {
     schema: { example: { accessToken: 'jwt_token' } },
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: FastifyReply) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: FastifyReply,
+  ): Promise<LoginResponse> {
     const { accessToken, refreshToken } = await this.authService.generateTokens(loginDto);
 
     setAuthCookie(res, accessToken, refreshToken);
 
-    return { message: 'login successfully' };
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'login successfully',
+      success: true,
+      data: null,
+    };
   }
 
   @IsPublic()
@@ -45,7 +56,10 @@ export class AuthController {
     schema: { example: { accessToken: 'jwt_token' } },
   })
   @ApiResponse({ status: 401, description: 'Missing or invalid refresh token' })
-  async refresh(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
+  async refresh(
+    @Req() req: FastifyRequest,
+    @Res({ passthrough: true }) res: FastifyReply,
+  ): Promise<RefreshResponse> {
     const refreshToken = req.cookies?.refreshToken;
 
     if (!refreshToken) {
@@ -65,7 +79,12 @@ export class AuthController {
 
     setAuthCookie(res, accessToken, newRefreshToken);
 
-    return { message: 'new tokens generated' };
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'new tokens generated',
+      success: true,
+      data: null,
+    };
   }
 
   @IsPublic()
@@ -78,8 +97,13 @@ export class AuthController {
     description: 'Logout successful',
     schema: { example: { message: 'Logged out successfully' } },
   })
-  logout(@Res({ passthrough: true }) res: FastifyReply) {
+  logout(@Res({ passthrough: true }) res: FastifyReply): LogoutResponse {
     clearAuthCookie(res);
-    return { message: 'Logged out successfully' };
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Logged out successfully',
+      success: true,
+      data: null,
+    };
   }
 }
