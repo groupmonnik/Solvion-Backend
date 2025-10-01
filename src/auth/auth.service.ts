@@ -32,17 +32,16 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'user not found');
+      throw new HttpExceptionCustom(null, HttpStatus.NOT_FOUND, 'User not found');
     }
 
     if (!payload.isRefresh) {
-      if (!payload.password) {
-        throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is required');
-      }
-
-      const isPasswordValid = await PasswordService.verifyPassword(payload.password, user.password);
+      const isPasswordValid = await PasswordService.verifyPassword(
+        payload.password!,
+        user.password,
+      );
       if (!isPasswordValid) {
-        throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'Password is incorrect');
+        throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'Password is incorrect');
       }
     }
 
@@ -59,50 +58,32 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string) {
-    try {
-      const decryptedRefresh = this.encryptService.decrypt(refreshToken);
+    const decryptedRefresh = this.encryptService.decrypt(refreshToken);
 
-      const user = await this.verifyToken({ token: decryptedRefresh, isRefresh: true });
+    const user = await this.verifyToken({ token: decryptedRefresh, isRefresh: true });
 
-      if (!user) {
-        throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'invalid refresh token');
-      }
-
-      return this.generateTokens({
-        email: user.email,
-        password: user.password,
-        isRefresh: true,
-      });
-    } catch (error) {
-      if (error instanceof HttpExceptionCustom) {
-        throw error;
-      }
-      throw new HttpExceptionCustom({ error }, HttpStatus.UNAUTHORIZED, 'Invalid refresh token');
+    if (!user) {
+      throw new HttpExceptionCustom(null, HttpStatus.UNAUTHORIZED, 'Invalid refresh token');
     }
+
+    return this.generateTokens({
+      email: user.email,
+      password: user.password,
+      isRefresh: true,
+    });
   }
 
   async verifyToken(payload: VerifyTokenPayload) {
-    try {
-      const decoded = this.jwtService.verify<JwtPayload>(payload.token, {
-        secret: payload.isRefresh
-          ? this.refreshTokenConfiguration.secret
-          : this.accessTokenConfiguration.secret,
-      });
+    const decoded = this.jwtService.verify<JwtPayload>(payload.token, {
+      secret: payload.isRefresh
+        ? this.refreshTokenConfiguration.secret
+        : this.accessTokenConfiguration.secret,
+    });
 
-      const user = await this.userRepository.findOne({
-        where: { id: decoded.sub ?? -1 },
-      });
+    const user = await this.userRepository.findOne({
+      where: { id: decoded.sub ?? -1 },
+    });
 
-      return user;
-    } catch (error) {
-      if (error instanceof HttpExceptionCustom) {
-        throw error;
-      }
-      throw new HttpExceptionCustom(
-        { error },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        'Internal Server Error',
-      );
-    }
+    return user;
   }
 }

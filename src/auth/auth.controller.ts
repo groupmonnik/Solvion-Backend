@@ -55,7 +55,7 @@ export class AuthController {
     description: 'New accessToken generated',
     schema: { example: { accessToken: 'jwt_token' } },
   })
-  @ApiResponse({ status: 401, description: 'Missing or invalid refresh token' })
+  @ApiResponse({ status: 401, description: 'Missing or Invalid refresh token' })
   async refresh(
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
@@ -63,14 +63,26 @@ export class AuthController {
     const refreshToken = req.cookies?.refreshToken;
 
     if (!refreshToken) {
-      return res.status(HttpStatus.UNAUTHORIZED).send({ message: 'No refresh token provided' });
+      res.status(HttpStatus.UNAUTHORIZED);
+
+      return {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'No refresh token provided',
+        success: false,
+        data: null,
+      };
     }
 
     const unsigned = req.unsignCookie(refreshToken);
     if (!unsigned.valid || !unsigned.value) {
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .send({ message: 'Invalid refresh token signature' });
+      res.status(HttpStatus.UNAUTHORIZED);
+
+      return {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'Invalid refresh token signature',
+        success: false,
+        data: null,
+      };
     }
 
     const { accessToken, refreshToken: newRefreshToken } = await this.authService.refreshToken(
@@ -81,7 +93,7 @@ export class AuthController {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'new tokens generated',
+      message: 'New tokens generated',
       success: true,
       data: null,
     };

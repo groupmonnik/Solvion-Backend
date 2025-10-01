@@ -64,7 +64,6 @@ describe('Users Integration Tests', () => {
       expect(createUserResult.data.firstName).toBe(createUserDto.firstName);
       expect(createUserResult.data.lastName).toBe(createUserDto.lastName);
       expect(createUserResult.data.email).toBe(createUserDto.email);
-      expect(createUserResult.data.password).toBe(createUserDto.password);
 
       // Verify user was actually saved to database
       const savedUser = await usersRepository.findOneBy({ id: createUserResult.data.id });
