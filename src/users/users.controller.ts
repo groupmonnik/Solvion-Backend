@@ -9,12 +9,14 @@ import { FindAllUsersResponse } from './types/controller/response/find-all-users
 import { FindUserByIdResponse } from './types/controller/response/find-user-by-id-response.type';
 import { UpdateUserResponse } from './types/controller/response/update-user-response.type';
 import { RemoveUserResponse } from './types/controller/response/remove-user-response.type';
+import { IsPublic } from '@/common/decorators/public.decorator';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @IsPublic()
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({

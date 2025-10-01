@@ -27,10 +27,10 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({
-    description: 'User password',
-    example: 'mySecurePassword123',
+    example: 'Tos200689!',
+    description:
+      'User password. Must contain at least 8 characters, including uppercase, lowercase, number, and symbol.',
     minLength: 8,
   })
-  @IsNotEmpty()
   password: string;
 }
