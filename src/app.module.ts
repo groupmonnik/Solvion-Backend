@@ -6,9 +6,6 @@ import { User } from './users/entities/user.entity';
 import { AuthModule } from './auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/access-token-jwt.guard';
-import { GoogleAccountsService } from './google-accounts/google-accounts.service';
-import { GoogleAccountsController } from './google-accounts/google-accounts.controller';
-import { GoogleAccountsModule } from './google-accounts/google-accounts.module';
 
 @Module({
   imports: [
@@ -30,9 +27,7 @@ import { GoogleAccountsModule } from './google-accounts/google-accounts.module';
       inject: [ConfigService],
     }),
     AuthModule,
-    GoogleAccountsModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, GoogleAccountsService],
-  controllers: [GoogleAccountsController],
+  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

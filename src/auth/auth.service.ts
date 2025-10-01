@@ -1,7 +1,6 @@
 import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { GenerateTokenPayload } from './service/payload/generate-token-payload.type';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '@/users/entities/user.entity';
@@ -9,9 +8,10 @@ import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
 import accessTokenJwtConfig from './config/access-token-jwt.config';
 import * as config from '@nestjs/config';
 import refreshTokenJwtConfig from './config/refresh-token-jwt.config';
-import { VerifyTokenPayload } from './service/payload/verify-token-payload.type';
-import { JwtPayload } from './service/payload/jwt-payload.type';
 import { PasswordService } from '@/common/encrypt/password.service';
+import { GenerateTokenPayload } from './types/service/payloads/generate-token-payload.type';
+import { VerifyTokenPayload } from './types/service/payloads/verify-token-payload.type';
+import { JwtPayload } from './types/service/payloads/jwt-payload.type';
 
 @Injectable()
 export class AuthService {

@@ -5,9 +5,9 @@ import { User } from '@/users/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { JwtPayload } from '../service/payload/jwt-payload.type';
 import { PasswordService } from '@/common/encrypt/password.service';
 import * as bcrypt from 'bcrypt';
+import { JwtPayload } from '@/auth/types/service/payloads/jwt-payload.type';
 
 process.env.CRYPTO_KEY = '0000000000000000000000000000000000000000000000000000000000000000';
 

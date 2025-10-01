@@ -5,7 +5,7 @@ import { FastifyRequest } from 'fastify';
 import * as config from '@nestjs/config';
 import accessTokenConfig from '@/auth/config/access-token-jwt.config';
 import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
-import { JwtPayload } from '../service/payload/jwt-payload.type';
+import { JwtPayload } from '@/auth/types/service/payloads/jwt-payload.type';
 
 @Injectable()
 export class AccessTokenJwtStrategy extends PassportStrategy(Strategy, 'AccessTokenJwt') {
