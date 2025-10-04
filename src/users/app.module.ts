@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
-import { UsersModule } from './users/users.module';
+import { UsersModule } from '@/users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './users/entities/user.entity';
-import { AuthModule } from './auth/auth.module';
+import { User } from '@/users/entities/user.entity';
+import { AuthModule } from '@/auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards/access-token-jwt.guard';
-import { GoogleAccountsModule } from './google-accounts/google-accounts.module';
+import { JwtAuthGuard } from '@/auth/guards/access-token-jwt.guard';
+import { GoogleAccountsService } from '@/google-accounts/google-accounts.service';
+import { GoogleAccountsModule } from '@/google-accounts/google-accounts.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { GoogleAccountsModule } from './google-accounts/google-accounts.module';
     AuthModule,
     GoogleAccountsModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, GoogleAccountsService],
+  controllers: [],
 })
 export class AppModule {}
