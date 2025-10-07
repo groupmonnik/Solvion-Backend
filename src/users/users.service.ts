@@ -34,7 +34,7 @@ export class UsersService {
     return await this.usersRepository.findOneBy({ id: payload.id });
   }
 
-  async updateUser(payload: UpdateUserPayload & { id: number }): Promise<UpdateUserReturn> {
+  async updateUser(payload: UpdateUserPayload & { id: string }): Promise<UpdateUserReturn> {
     const { id, ...updateData } = payload;
     await this.usersRepository.update(id, updateData);
     const findUserByIdResult = await this.findUserById({ id });
@@ -43,7 +43,7 @@ export class UsersService {
       throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST);
     }
 
-    return findUserByIdResult as InferIdType<User, number>;
+    return findUserByIdResult as InferIdType<User, string>;
   }
 
   async removeUser(payload: RemoveUserPayload): Promise<RemoveUserReturn> {

@@ -1,3 +1,3 @@
 export type FindUserByIdPayload = {
-  id: number;
+  id: string;
 };

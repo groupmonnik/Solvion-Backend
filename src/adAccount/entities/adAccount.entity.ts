@@ -36,7 +36,7 @@ export class AdAccount {
     description: 'Associated user',
     type: () => User,
   })
-  @ManyToOne(() => User, User => User.adAccounts, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.adAccounts, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 

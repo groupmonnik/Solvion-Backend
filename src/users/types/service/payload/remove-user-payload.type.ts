@@ -1,3 +1,3 @@
 export type RemoveUserPayload = {
-  id: number;
+  id: string;
 };

@@ -4,6 +4,12 @@ import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/entities/user.entity';
+import { AdAccount } from './adAccount/entities/adAccount.entity';
+import { Campaign } from './campaign/campaign.entity';
+import { CampaignMetrics } from './metrics/entitites/campaingMetrics.entity';
+import { Creative } from './creative/entities/creative.entity';
+import { CreativeMetrics } from './metrics/entitites/creativeMetrics.entity';
+import { CreativeAnalysis } from './analytics/entities/creativeAnalysis.entity';
 
 @Module({
   imports: [
@@ -18,7 +24,15 @@ import { User } from './users/entities/user.entity';
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
-        entities: [User],
+        entities: [
+          User,
+          AdAccount,
+          Campaign,
+          CampaignMetrics,
+          Creative,
+          CreativeMetrics,
+          CreativeAnalysis,
+        ],
         synchronize: configService.get<string>('NODE_ENV', 'development') === 'development',
         autoLoadEntities: true,
       }),
