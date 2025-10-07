@@ -39,8 +39,11 @@ describe('Users Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Clean database before each test
-    await usersRepository.clear();
+    // Clean database before each test - delete all users (CASCADE will handle related records)
+    const allUsers = await usersRepository.find();
+    if (allUsers.length > 0) {
+      await usersRepository.remove(allUsers);
+    }
 
     // Initialize mock reply
     mockReply = {
