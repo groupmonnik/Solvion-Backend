@@ -26,6 +26,22 @@ export class AuthService {
     private readonly refreshTokenConfiguration: config.ConfigType<typeof refreshTokenJwtConfig>,
   ) {}
 
+  /**
+   * Gera tokens de acesso (access token) e atualização (refresh token) para um usuário.
+   *
+   * @param {GenerateTokenPayload} payload - Dados necessários para gerar os tokens.
+   *   @property {string} payload.email - Email do usuário.
+   *   @property {string} [payload.password] - Senha do usuário (necessária se não for refresh token).
+   *   @property {boolean} [payload.isRefresh=false] - Indica se a geração é apenas de refresh token.
+   *
+   * @returns {Promise<{ accessToken: string, refreshToken: string }>} Um objeto contendo:
+   *   - `accessToken`: token de acesso criptografado.
+   *   - `refreshToken`: token de atualização criptografado.
+   *
+   * @throws {HttpExceptionCustom} Lança uma exceção se:
+   *   - O usuário não for encontrado (`HttpStatus.NOT_FOUND`).
+   *   - A senha fornecida estiver incorreta (`HttpStatus.UNAUTHORIZED`), quando aplicável.
+   */
   async generateTokens(payload: GenerateTokenPayload) {
     const user = await this.userRepository.findOne({
       where: { email: payload.email },

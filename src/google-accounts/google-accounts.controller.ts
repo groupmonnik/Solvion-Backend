@@ -1,5 +1,5 @@
 import { IsPublic } from '@/common/decorators/public.decorator';
-import { Controller, Get, HttpStatus, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Post, Query, Res } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
 import { GoogleAccountsService } from './google-accounts.service';
 import { RedirectResponse } from './types/controller/responses/redirect-response';
@@ -19,7 +19,7 @@ export class GoogleAccountsController {
   @Get('redirect')
   async handleRedirect(@Query('code') code: string): Promise<RedirectResponse> {
     const tokens = await this.googleAccountsService.getTokens(code);
-    const tokenId = this.googleAccountsService.decodeToken(tokens.id_token);
+    const tokenId = await this.googleAccountsService.decodeToken(tokens.id_token!);
     console.log('Google OAuth2', tokens);
     console.log('__________________________________________________________');
     console.log('Token id', tokenId);
@@ -30,5 +30,12 @@ export class GoogleAccountsController {
       success: true,
       data: null,
     };
+  }
+
+  @IsPublic()
+  @Post('refresh/token')
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
+    const newAccessToken = await this.googleAccountsService.refreshAccessToken(refreshToken);
+    return newAccessToken;
   }
 }

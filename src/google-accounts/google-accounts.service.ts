@@ -1,108 +1,63 @@
+import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { URLSearchParams } from 'url';
-import axios, { AxiosError } from 'axios';
-import { GoogleTokensResponse } from './types/service/return/google-tokens-response-return';
-import { decode } from 'jsonwebtoken';
-import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
-import { GoogleTokenIdResponse } from './types/service/return/google-tokens-id-response-return';
+import { google, Auth } from 'googleapis';
 
 @Injectable()
 export class GoogleAccountsService {
   // * Variaveis de configuração do Google OAuth2
-  private readonly clientId: string;
-  private readonly clientSecret: string;
-  private readonly redirectUri: string;
-  private readonly tokenUri: string;
+  private oauth2Client: Auth.OAuth2Client;
 
   constructor(private readonly configService: ConfigService) {
-    this.clientId = this.configService.get<string>('GOOGLE_CLIENT_ID')!;
-    this.clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET')!;
-    this.redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI')!;
-    this.tokenUri = this.configService.get<string>('GOOGLE_TOKEN_URI')!;
+    this.oauth2Client = new google.auth.OAuth2(
+      this.configService.get<string>('GOOGLE_CLIENT_ID'),
+      this.configService.get<string>('GOOGLE_CLIENT_SECRET'),
+      this.configService.get<string>('GOOGLE_REDIRECT_URI'),
+    );
   }
 
   // * Gera a URL que o usuario deve acessar para autorizar a aplicação
   getAuthUrl(): string {
-    // * Escopos da aplicação, isso pode variar dependendo das informação que iremos necessitar
-    const scope = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/adwords'].join(
-      ' ',
-    );
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri,
-      scope,
-      access_type: 'offline', // * Permite refresh_token
-      prompt: 'select_account', // * Pede para o usuário selecionar a conta
+    return this.oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/adwords'],
     });
-
-    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
   // * Troca o codigo de autorização por tokens
-  async getTokens(code: string): Promise<GoogleTokensResponse> {
-    const payload = new URLSearchParams({
-      code,
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-      redirect_uri: this.redirectUri,
-      grant_type: 'authorization_code',
-    });
-
-    try {
-      const response = await axios.post<GoogleTokensResponse>(this.tokenUri, payload.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
-
-      return response.data;
-    } catch (error) {
-      const axiosError = error as AxiosError;
-
-      if (axiosError.response) {
-        throw new HttpExceptionCustom(
-          axiosError.response.data as object,
-          axiosError.status,
-          'Falha na troca de código por tokens com o Google. Parâmetros inválidos.',
-        );
-      }
-      throw new HttpExceptionCustom(
-        null,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        'Erro de rede ou infraestrutura ao tentar a comunicação com o Google.',
-      );
-    }
+  async getTokens(code: string): Promise<Auth.Credentials> {
+    const token = await this.oauth2Client.getToken(code);
+    return token.tokens;
   }
 
-  // * função expecifica para o token_id onde ele faz um decode para trazer as informações
-  decodeToken(tokenId: string) {
-    const decodeTokenId = decode(tokenId) as GoogleTokenIdResponse;
+  /**
+   * Decodifica um ID token do Google e retorna o payload do token.
+   *
+   * @param {string} tokenId - O ID token do Google a ser verificado e decodificado.
+   * @returns {Promise<Auth.TokenPayload>} Uma Promise que resolve para o payload do token,
+   * incluindo informações do usuário, como email, nome e ID do Google.
+   *
+   * @throws {Error} Lança um erro se o token for inválido ou não puder ser verificado.
+   */
+  async decodeToken(tokenId: string): Promise<Auth.TokenPayload> {
+    const token = await this.oauth2Client.verifyIdToken({
+      idToken: tokenId,
+      audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+    });
 
-    if (!decodeTokenId) {
-      throw new HttpExceptionCustom(
-        null,
-        HttpStatus.BAD_REQUEST,
-        'Invalid ID token: could not decode',
-      );
+    return token.getPayload()!;
+  }
+
+  async refreshAccessToken(refreshToken: string) {
+    this.oauth2Client.setCredentials({ refresh_token: refreshToken });
+    const tokenResponse = await this.oauth2Client.getAccessToken();
+    if (!tokenResponse) {
+      throw new HttpExceptionCustom(null, HttpStatus.BAD_REQUEST, 'deu ruim aqui!');
     }
-
-    // * objeto com os dados, caso haja necessidade apenas retire os dados que não seram utilizados
-    const googleTokenIdResponse: GoogleTokenIdResponse = {
-      iss: decodeTokenId.iss,
-      aud: decodeTokenId.aud,
-      azp: decodeTokenId.azp,
-      sub: decodeTokenId.sub,
-      email: decodeTokenId.email,
-      email_verified: decodeTokenId.email_verified,
-      name: decodeTokenId.name,
-      picture: decodeTokenId.picture,
-      given_name: decodeTokenId.given_name,
-      family_name: decodeTokenId.family_name,
-      locale: decodeTokenId.locale,
-      iat: decodeTokenId.iat,
-      exp: decodeTokenId.exp,
+    return {
+      access_token: tokenResponse.token,
+      expiry_date: this.oauth2Client.credentials.expiry_date,
     };
-
-    return googleTokenIdResponse;
   }
 }

@@ -1,33 +1,55 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { GoogleAccountsService } from '@/google-accounts/google-accounts.service';
-import { GoogleTokensResponse } from '../types/service/return/google-tokens-response-return';
-import { GoogleTokenIdResponse } from '../types/service/return/google-tokens-id-response-return';
-import { decode } from 'jsonwebtoken';
-import axios from 'axios';
 import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
+import { GoogleAccountsService } from '@/google-accounts/google-accounts.service';
+import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
+import { Auth } from 'googleapis';
 
-jest.mock('axios');
-jest.mock('jsonwebtoken');
-let mockedAxios: jest.Mocked<typeof axios>;
-let mockedDecode: jest.MockedFunction<typeof decode>;
+type MockOAuth2Client = jest.Mocked<
+  Pick<
+    Auth.OAuth2Client,
+    | 'generateAuthUrl'
+    | 'getToken'
+    | 'verifyIdToken'
+    | 'setCredentials'
+    | 'getAccessToken'
+    | 'credentials'
+  >
+>;
 
-describe('GoogleAccountsService - getAuthUrl', () => {
+const oauth2ClientMock: MockOAuth2Client = {
+  generateAuthUrl: jest.fn(),
+  getToken: jest.fn(),
+  verifyIdToken: jest.fn(),
+  setCredentials: jest.fn(),
+  getAccessToken: jest.fn(),
+  credentials: {} as Auth.Credentials,
+};
+
+jest.mock('googleapis', () => ({
+  google: {
+    auth: {
+      OAuth2: jest.fn().mockImplementation(() => oauth2ClientMock),
+    },
+  },
+}));
+
+describe('GoogleAccountsService', () => {
   let service: GoogleAccountsService;
 
   const mockConfigService = {
-    get: (key: string) => {
+    get: (key: string): string => {
       const values: Record<string, string> = {
         GOOGLE_CLIENT_ID: 'test-client-id',
         GOOGLE_CLIENT_SECRET: 'test-client-secret',
         GOOGLE_REDIRECT_URI: 'http://localhost/callback',
-        GOOGLE_TOKEN_URI: 'https://oauth2.googleapis.com/token',
       };
       return values[key];
     },
   };
 
-  beforeAll(async () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [GoogleAccountsService, { provide: ConfigService, useValue: mockConfigService }],
     }).compile();
@@ -35,279 +57,118 @@ describe('GoogleAccountsService - getAuthUrl', () => {
     service = module.get<GoogleAccountsService>(GoogleAccountsService);
   });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockedAxios = axios as jest.Mocked<typeof axios>;
-    mockedDecode = decode as jest.MockedFunction<typeof decode>;
-  });
-
   describe('getAuthUrl', () => {
-    const expectedUrl =
-      'https://accounts.google.com/o/oauth2/v2/auth?' +
-      'response_type=code&' +
-      'client_id=test-client-id&' +
-      'redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&' +
-      'scope=openid+email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fadwords&' +
-      'access_type=offline&' +
-      'prompt=select_account';
+    it('deve gerar a URL correta com os parâmetros esperados', () => {
+      oauth2ClientMock.generateAuthUrl.mockReturnValue('https://example.com/auth');
 
-    it('1 - should build URL in correct order with correct values', () => {
-      const url = service.getAuthUrl();
-      expect(url).toBe(expectedUrl);
+      const result = service.getAuthUrl();
+
+      expect(result).toBe('https://example.com/auth');
+      expect(oauth2ClientMock.generateAuthUrl).toHaveBeenCalledWith({
+        access_type: 'offline',
+        prompt: 'consent',
+        scope: ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/adwords'],
+      });
     });
 
-    it('2 - should not match if values are wrong but order is correct', () => {
-      const wrongValuesUrl =
-        'https://accounts.google.com/o/oauth2/v2/auth?' +
-        'response_type=code&' +
-        'client_id=wrong-client-id&' + // valor errado
-        'redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&' +
-        'scope=openid+email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fadwords&' +
-        'access_type=offline&' +
-        'prompt=select_account';
-
-      const url = service.getAuthUrl();
-      expect(url).not.toBe(wrongValuesUrl);
-    });
-
-    it('3 - should not match if values are correct but order is wrong', () => {
-      const wrongOrderUrl =
-        'https://accounts.google.com/o/oauth2/v2/auth?' +
-        'client_id=test-client-id&' + // ordem trocada
-        'response_type=code&' +
-        'redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&' +
-        'scope=openid+email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fadwords&' +
-        'access_type=offline&' +
-        'prompt=select_account';
-
-      const url = service.getAuthUrl();
-      expect(url).not.toBe(wrongOrderUrl);
-    });
-
-    it('4 - should not match if values and order are wrong', () => {
-      const completelyWrongUrl =
-        'https://accounts.google.com/o/oauth2/v2/auth?' +
-        'client_id=wrong-client-id&' +
-        'response_type=wrong&' +
-        'redirect_uri=wrong-uri&' +
-        'scope=wrong-scope&' +
-        'access_type=wrong&' +
-        'prompt=wrong';
-
-      const url = service.getAuthUrl();
-      expect(url).not.toBe(completelyWrongUrl);
+    it('deve retornar uma string', () => {
+      oauth2ClientMock.generateAuthUrl.mockReturnValue('https://auth.url');
+      const result = service.getAuthUrl();
+      expect(typeof result).toBe('string');
     });
   });
 
   describe('getTokens', () => {
-    it('1 - should return GoogleTokensResponse on success', async () => {
-      const fakeResponse: GoogleTokensResponse = {
-        access_token: 'fake-access-token',
-        expires_in: 3600,
-        refresh_token: 'fake-refresh-token',
-        scope: 'openid email profile',
-        token_type: 'Bearer',
-        id_token: 'fake-id-token',
+    it('deve retornar tokens válidos quando o Google responder corretamente', async () => {
+      const fakeTokens = {
+        access_token: 'token123',
+        refresh_token: 'refresh123',
       };
-      const postSpyOn = jest.spyOn(mockedAxios, 'post');
-      mockedAxios.post.mockResolvedValue({ data: fakeResponse });
+      (oauth2ClientMock.getToken as jest.Mock).mockResolvedValue({ tokens: fakeTokens });
 
       const result = await service.getTokens('valid-code');
-      expect(result).toEqual(fakeResponse);
-      expect(postSpyOn).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(fakeTokens);
+      expect(oauth2ClientMock.getToken).toHaveBeenCalledWith('valid-code');
     });
 
-    it('2 - should throw if axios returns an error (HTTP error)', async () => {
-      const postSpyOn = jest.spyOn(mockedAxios, 'post');
-      mockedAxios.post.mockRejectedValue({
-        response: { status: 400, data: { error: 'invalid_grant' } },
-      });
+    it('deve lançar erro se o Google lançar uma exceção', async () => {
+      (oauth2ClientMock.getToken as jest.Mock).mockRejectedValue(new Error('invalid_grant'));
 
-      await expect(service.getTokens('invalid-code')).rejects.toMatchObject({
-        response: { data: { error: 'invalid_grant' } },
-      });
-      expect(postSpyOn).toHaveBeenCalledTimes(1);
+      await expect(service.getTokens('bad-code')).rejects.toThrow('invalid_grant');
     });
 
-    it('3 - should throw if code is empty', async () => {
-      const postSpyOn = jest.spyOn(mockedAxios, 'post');
-      mockedAxios.post.mockRejectedValue({
-        response: { status: 400, data: { error: 'invalid_grant' } },
-      });
-
-      await expect(service.getTokens('')).rejects.toMatchObject({
-        response: { data: { error: 'invalid_grant' } },
-      });
-      expect(postSpyOn).toHaveBeenCalledTimes(1);
-    });
-
-    it('4 - should throw if axios throws network error', async () => {
-      const postSpyOn = jest.spyOn(mockedAxios, 'post');
-      mockedAxios.post.mockRejectedValue(new Error('Network Error'));
-
-      await expect(service.getTokens('any-code')).rejects.toThrow(
-        'Erro de rede ou infraestrutura ao tentar a comunicação com o Google.',
-      );
-      expect(postSpyOn).toHaveBeenCalledTimes(1);
-    });
-
-    it('6 - should send correct payload to axios', async () => {
-      const fakeResponse: GoogleTokensResponse = {
-        access_token: 'fake-access-token',
-        expires_in: 3600,
-        refresh_token: 'fake-refresh-token',
-        scope: 'openid email profile',
-        token_type: 'Bearer',
-        id_token: 'fake-id-token',
-      };
-      const postSpyOn = jest.spyOn(mockedAxios, 'post');
-      mockedAxios.post.mockResolvedValue({ data: fakeResponse });
-
-      const code = 'test-code';
-      await service.getTokens(code);
-
-      expect(postSpyOn).toHaveBeenCalledWith(
-        'https://oauth2.googleapis.com/token',
-        expect.stringContaining(`code=${code}`),
-        expect.objectContaining({
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        }),
-      );
-
-      const calledPayload = mockedAxios.post.mock.calls[0][1];
-      expect(calledPayload).toContain('client_id=test-client-id');
-      expect(calledPayload).toContain('client_secret=test-client-secret');
-      expect(calledPayload).toContain('redirect_uri=http%3A%2F%2Flocalhost%2Fcallback');
-      expect(calledPayload).toContain('grant_type=authorization_code');
+    it('deve lançar erro se o código estiver vazio', async () => {
+      (oauth2ClientMock.getToken as jest.Mock).mockRejectedValue(new Error('Empty code'));
+      await expect(service.getTokens('')).rejects.toThrow('Empty code');
     });
   });
 
   describe('decodeToken', () => {
-    it('1 - should return decoded token with all fields when valid', () => {
-      const fakeDecoded: GoogleTokenIdResponse = {
-        iss: 'accounts.google.com',
-        aud: 'test-client-id',
-        azp: 'test-client-id',
-        sub: '123456789',
-        email: 'test@example.com',
-        email_verified: true,
-        name: 'Test User',
-        picture: 'http://example.com/pic.jpg',
-        given_name: 'Test',
-        family_name: 'User',
-        locale: 'en',
-        iat: 1234567890,
-        exp: 1234569999,
-      };
+    const fakePayload: Auth.TokenPayload = {
+      iss: 'accounts.google.com',
+      aud: 'test-client-id',
+      sub: '123',
+      email: 'user@example.com',
+      iat: 0,
+      exp: 0,
+    };
 
-      mockedDecode.mockReturnValue(fakeDecoded);
+    it('deve retornar o payload decodificado corretamente', async () => {
+      const getPayload = jest.fn().mockReturnValue(fakePayload);
+      (oauth2ClientMock.verifyIdToken as jest.Mock).mockResolvedValue({
+        getPayload,
+      } as unknown as Auth.LoginTicket);
 
-      const result = service.decodeToken('valid-token');
-      expect(result).toEqual(fakeDecoded);
-      expect(mockedDecode).toHaveBeenCalledWith('valid-token');
-    });
-
-    it('2 - should throw HttpExceptionCustom when decode returns null', () => {
-      mockedDecode.mockReturnValue(null);
-
-      expect(() => service.decodeToken('invalid-token')).toThrow(HttpExceptionCustom);
-      expect(mockedDecode).toHaveBeenCalledWith('invalid-token');
-    });
-
-    it('3 - should return object with undefined values if decode result is partial', () => {
-      const partialDecoded = {
-        iss: 'accounts.google.com',
-        aud: 'test-client-id',
-        sub: '123456789',
-        email: 'test@example.com',
-        email_verified: true,
-      };
-
-      mockedDecode.mockReturnValue(partialDecoded);
-
-      const result = service.decodeToken('partial-token');
-      expect(result).toEqual({
-        iss: 'accounts.google.com',
-        aud: 'test-client-id',
-        azp: undefined,
-        sub: '123456789',
-        email: 'test@example.com',
-        email_verified: true,
-        name: undefined,
-        picture: undefined,
-        given_name: undefined,
-        family_name: undefined,
-        locale: undefined,
-        iat: undefined,
-        exp: undefined,
+      const result = await service.decodeToken('valid-token');
+      expect(result).toEqual(fakePayload);
+      expect(oauth2ClientMock.verifyIdToken).toHaveBeenCalledWith({
+        idToken: 'valid-token',
+        audience: 'test-client-id',
       });
     });
 
-    it('4 - should ignore extra fields and return only defined properties', () => {
-      const decodedWithExtras = {
-        iss: 'accounts.google.com',
-        aud: 'test-client-id',
-        sub: '123456789',
-        email: 'test@example.com',
-        email_verified: true,
-        name: 'Extra User',
-        picture: 'http://example.com/pic.jpg',
-        iat: 1234567890,
-        exp: 1234569999,
-        extra_field: 'ignore-me',
-      };
-
-      mockedDecode.mockReturnValue(decodedWithExtras);
-
-      const result = service.decodeToken('extra-token');
-      expect(result).toEqual({
-        iss: 'accounts.google.com',
-        aud: 'test-client-id',
-        azp: undefined,
-        sub: '123456789',
-        email: 'test@example.com',
-        email_verified: true,
-        name: 'Extra User',
-        picture: 'http://example.com/pic.jpg',
-        given_name: undefined,
-        family_name: undefined,
-        locale: undefined,
-        iat: 1234567890,
-        exp: 1234569999,
-      });
-      expect('extra_field' in result).toBe(false);
+    it('deve lançar erro se verifyIdToken rejeitar', async () => {
+      (oauth2ClientMock.verifyIdToken as jest.Mock).mockRejectedValue(new Error('invalid token'));
+      await expect(service.decodeToken('invalid-token')).rejects.toThrow('invalid token');
     });
 
-    it('5 - should return object even if fields have unexpected types', () => {
-      const decodedWithWrongTypes = {
-        iss: 'accounts.google.com',
-        aud: 'test-client-id',
-        sub: '123456789',
-        email: 'test@example.com',
-        email_verified: 'true',
-        name: 12345,
-        iat: 'not-a-number',
-        exp: 'not-a-number',
-      };
+    it('deve retornar null se o payload for nulo', async () => {
+      const getPayload = jest.fn().mockReturnValue(null);
+      (oauth2ClientMock.verifyIdToken as jest.Mock).mockResolvedValue({
+        getPayload,
+      } as unknown as Auth.LoginTicket);
 
-      mockedDecode.mockReturnValue(decodedWithWrongTypes as any);
+      const result = await service.decodeToken('token');
+      expect(result).toBeNull();
+    });
+  });
 
-      const result = service.decodeToken('wrong-types-token');
+  describe('refreshAccessToken', () => {
+    it('deve retornar novo access_token e expiry_date quando sucesso', async () => {
+      oauth2ClientMock.credentials.expiry_date = 123456;
+      (oauth2ClientMock.getAccessToken as jest.Mock).mockResolvedValue({ token: 'new-token' });
+
+      const result = await service.refreshAccessToken('refresh123');
+
       expect(result).toEqual({
-        iss: 'accounts.google.com',
-        aud: 'test-client-id',
-        azp: undefined,
-        sub: '123456789',
-        email: 'test@example.com',
-        email_verified: 'true',
-        name: 12345,
-        picture: undefined,
-        given_name: undefined,
-        family_name: undefined,
-        locale: undefined,
-        iat: 'not-a-number',
-        exp: 'not-a-number',
+        access_token: 'new-token',
+        expiry_date: 123456,
       });
+      expect(oauth2ClientMock.setCredentials).toHaveBeenCalledWith({
+        refresh_token: 'refresh123',
+      });
+    });
+
+    it('deve lançar HttpExceptionCustom se getAccessToken retornar null', async () => {
+      (oauth2ClientMock.getAccessToken as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.refreshAccessToken('invalid')).rejects.toThrow(HttpExceptionCustom);
+    });
+
+    it('deve lançar erro se getAccessToken rejeitar', async () => {
+      (oauth2ClientMock.getAccessToken as jest.Mock).mockRejectedValue(new Error('Google error'));
+
+      await expect(service.refreshAccessToken('refresh-token')).rejects.toThrow('Google error');
     });
   });
 });
