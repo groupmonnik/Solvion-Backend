@@ -132,43 +132,21 @@ describe('GoogleAccountsService', () => {
       await expect(service.decodeToken('invalid-token')).rejects.toThrow('invalid token');
     });
 
-    it('deve retornar null se o payload for nulo', async () => {
+    it('deve lançar HttpExceptionCustom se o payload for nulo', async () => {
       const getPayload = jest.fn().mockReturnValue(null);
       (oauth2ClientMock.verifyIdToken as jest.Mock).mockResolvedValue({
         getPayload,
       } as unknown as Auth.LoginTicket);
 
-      const result = await service.decodeToken('token');
-      expect(result).toBeNull();
-    });
-  });
+      await expect(service.decodeToken('token')).rejects.toThrow(HttpExceptionCustom);
+      await expect(service.decodeToken('token')).rejects.toThrow(
+        'Invalid ID token: could not decode',
+      );
 
-  describe('refreshAccessToken', () => {
-    it('deve retornar novo access_token e expiry_date quando sucesso', async () => {
-      oauth2ClientMock.credentials.expiry_date = 123456;
-      (oauth2ClientMock.getAccessToken as jest.Mock).mockResolvedValue({ token: 'new-token' });
-
-      const result = await service.refreshAccessToken('refresh123');
-
-      expect(result).toEqual({
-        access_token: 'new-token',
-        expiry_date: 123456,
+      expect(oauth2ClientMock.verifyIdToken).toHaveBeenCalledWith({
+        idToken: 'token',
+        audience: 'test-client-id',
       });
-      expect(oauth2ClientMock.setCredentials).toHaveBeenCalledWith({
-        refresh_token: 'refresh123',
-      });
-    });
-
-    it('deve lançar HttpExceptionCustom se getAccessToken retornar null', async () => {
-      (oauth2ClientMock.getAccessToken as jest.Mock).mockResolvedValue(null);
-
-      await expect(service.refreshAccessToken('invalid')).rejects.toThrow(HttpExceptionCustom);
-    });
-
-    it('deve lançar erro se getAccessToken rejeitar', async () => {
-      (oauth2ClientMock.getAccessToken as jest.Mock).mockRejectedValue(new Error('Google error'));
-
-      await expect(service.refreshAccessToken('refresh-token')).rejects.toThrow('Google error');
     });
   });
 });

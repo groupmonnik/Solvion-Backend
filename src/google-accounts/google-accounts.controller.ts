@@ -15,27 +15,16 @@ export class GoogleAccountsController {
     res.redirect(url, 302);
   }
 
-  @IsPublic()
   @Get('redirect')
   async handleRedirect(@Query('code') code: string): Promise<RedirectResponse> {
     const tokens = await this.googleAccountsService.getTokens(code);
     const tokenId = await this.googleAccountsService.decodeToken(tokens.id_token!);
-    console.log('Google OAuth2', tokens);
-    console.log('__________________________________________________________');
-    console.log('Token id', tokenId);
 
     return {
       statusCode: HttpStatus.OK,
-      message: '',
+      message: 'redirection and collection of tokens done successfully',
       success: true,
       data: null,
     };
-  }
-
-  @IsPublic()
-  @Post('refresh/token')
-  async refreshToken(@Body('refreshToken') refreshToken: string) {
-    const newAccessToken = await this.googleAccountsService.refreshAccessToken(refreshToken);
-    return newAccessToken;
   }
 }
