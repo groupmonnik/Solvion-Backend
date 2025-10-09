@@ -1,3 +1,4 @@
+import { ResponseType } from '@/common/types/response.type';
 import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus, Logger } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
 import { GaxiosError } from 'gaxios';
@@ -26,8 +27,8 @@ export class GoogleExceptionFilter implements ExceptionFilter {
     response.status(status).send({
       statusCode: status,
       message,
-      error: 'GaxiosError',
-      details,
-    });
+      success: false,
+      data: details,
+    } as ResponseType<any>);
   }
 }

@@ -142,7 +142,6 @@ describe('GoogleAccountsController (Integration with mocked code)', () => {
         .get('/google/accounts/redirect')
         .query({ code });
 
-      // o filtro GoogleExceptionFilter trata como 500
       expect(response.status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
       expect(response.body).toHaveProperty('message');
     });

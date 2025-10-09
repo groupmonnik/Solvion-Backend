@@ -1,4 +1,5 @@
 import { GoogleExceptionFilter } from '@/common/exception-filters/http-exception/google-exception.filter';
+import { ResponseType } from '@/common/types/response.type';
 import { ArgumentsHost, HttpStatus, Logger } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { GaxiosError } from 'gaxios';
@@ -59,9 +60,9 @@ describe('GoogleExceptionFilter', () => {
     expect(mockResponse.send).toHaveBeenCalledWith({
       statusCode: 400,
       message: 'Erro de teste1',
-      error: 'GaxiosError',
-      details: fakeResponse,
-    });
+      success: false,
+      data: fakeResponse,
+    } as ResponseType<any>);
   });
 
   it('deve usar valores padrão caso não exista resposta do Google', () => {
@@ -73,8 +74,8 @@ describe('GoogleExceptionFilter', () => {
     expect(mockResponse.send).toHaveBeenCalledWith({
       statusCode: HttpStatus.BAD_REQUEST,
       message: 'Erro sem response',
-      error: 'GaxiosError',
-      details: {
+      success: false,
+      data: {
         config: {},
         data: undefined,
       },

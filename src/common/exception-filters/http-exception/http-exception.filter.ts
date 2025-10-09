@@ -11,7 +11,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse() as ExceptionResponseType;
 
-    // Log the exception details to the console for debugging
     console.log('\n\n======================================================================\n\n');
     console.log('Exception: ', exceptionResponse);
 
