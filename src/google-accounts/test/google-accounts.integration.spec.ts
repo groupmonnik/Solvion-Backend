@@ -65,17 +65,6 @@ describe('GoogleAccountsController (Integration with mocked code)', () => {
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          dropSchema: true,
-          entities: [User],
-          synchronize: true,
-          logging: false,
-        }),
-        TypeOrmModule.forFeature([User]),
-      ],
       controllers: [GoogleAccountsController],
       providers: [GoogleAccountsService, { provide: ConfigService, useValue: mockConfigService }],
     }).compile();
