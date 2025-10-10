@@ -76,7 +76,6 @@ describe('GoogleAccountsController (Integration with mocked code)', () => {
 
     service = module.get<GoogleAccountsService>(GoogleAccountsService);
 
-    // capturamos a instância real do OAuth2 mockado
     const { google } = jest.requireMock('googleapis');
     mockOAuth2Instance = new google.auth.OAuth2();
   });

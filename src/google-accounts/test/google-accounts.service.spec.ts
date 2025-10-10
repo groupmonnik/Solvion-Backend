@@ -58,7 +58,7 @@ describe('GoogleAccountsService', () => {
   });
 
   describe('getAuthUrl', () => {
-    it('deve gerar a URL correta com os parâmetros esperados', () => {
+    it('should generate the correct URL with the expected parameters', () => {
       oauth2ClientMock.generateAuthUrl.mockReturnValue('https://example.com/auth');
 
       const result = service.getAuthUrl();
@@ -71,7 +71,7 @@ describe('GoogleAccountsService', () => {
       });
     });
 
-    it('deve retornar uma string', () => {
+    it('must return a string', () => {
       oauth2ClientMock.generateAuthUrl.mockReturnValue('https://auth.url');
       const result = service.getAuthUrl();
       expect(typeof result).toBe('string');
@@ -79,7 +79,7 @@ describe('GoogleAccountsService', () => {
   });
 
   describe('getTokens', () => {
-    it('deve retornar tokens válidos quando o Google responder corretamente', async () => {
+    it('should return valid tokens when Google responds correctly', async () => {
       const fakeTokens = {
         access_token: 'token123',
         refresh_token: 'refresh123',
@@ -113,7 +113,7 @@ describe('GoogleAccountsService', () => {
       exp: 0,
     };
 
-    it('deve retornar o payload decodificado corretamente', async () => {
+    it('must return the correctly decoded payload', async () => {
       const getPayload = jest.fn().mockReturnValue(fakePayload);
       (oauth2ClientMock.verifyIdToken as jest.Mock).mockResolvedValue({
         getPayload,
@@ -127,12 +127,12 @@ describe('GoogleAccountsService', () => {
       });
     });
 
-    it('deve lançar erro se verifyIdToken rejeitar', async () => {
+    it('should throw error if verifyIdToken rejects', async () => {
       (oauth2ClientMock.verifyIdToken as jest.Mock).mockRejectedValue(new Error('invalid token'));
       await expect(service.decodeToken('invalid-token')).rejects.toThrow('invalid token');
     });
 
-    it('deve lançar HttpExceptionCustom se o payload for nulo', async () => {
+    it('should throw HttpExceptionCustom if payload is null', async () => {
       const getPayload = jest.fn().mockReturnValue(null);
       (oauth2ClientMock.verifyIdToken as jest.Mock).mockResolvedValue({
         getPayload,
