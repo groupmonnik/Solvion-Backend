@@ -93,13 +93,14 @@ describe('GoogleAccountsService', () => {
 
     it('deve lançar erro se o Google lançar uma exceção', async () => {
       (oauth2ClientMock.getToken as jest.Mock).mockRejectedValue(new Error('invalid_grant'));
-
-      await expect(service.getTokens('bad-code')).rejects.toThrow('invalid_grant');
+      const getToken = service.getTokens('bad-code');
+      await expect(getToken).rejects.toThrow('invalid_grant');
     });
 
     it('deve lançar erro se o código estiver vazio', async () => {
       (oauth2ClientMock.getToken as jest.Mock).mockRejectedValue(new Error('Empty code'));
-      await expect(service.getTokens('')).rejects.toThrow('Empty code');
+      const getToken = service.getTokens('');
+      await expect(getToken).rejects.toThrow('Empty code');
     });
   });
 
@@ -129,7 +130,8 @@ describe('GoogleAccountsService', () => {
 
     it('should throw error if verifyIdToken rejects', async () => {
       (oauth2ClientMock.verifyIdToken as jest.Mock).mockRejectedValue(new Error('invalid token'));
-      await expect(service.decodeToken('invalid-token')).rejects.toThrow('invalid token');
+      const decodeToken = service.decodeToken('invalid-token');
+      await expect(decodeToken).rejects.toThrow('invalid token');
     });
 
     it('should throw HttpExceptionCustom if payload is null', async () => {
@@ -137,11 +139,9 @@ describe('GoogleAccountsService', () => {
       (oauth2ClientMock.verifyIdToken as jest.Mock).mockResolvedValue({
         getPayload,
       } as unknown as Auth.LoginTicket);
-
-      await expect(service.decodeToken('token')).rejects.toThrow(HttpExceptionCustom);
-      await expect(service.decodeToken('token')).rejects.toThrow(
-        'Invalid ID token: could not decode',
-      );
+      const decodeToken = service.decodeToken('token');
+      await expect(decodeToken).rejects.toThrow(HttpExceptionCustom);
+      await expect(decodeToken).rejects.toThrow('Invalid ID token: could not decode');
 
       expect(oauth2ClientMock.verifyIdToken).toHaveBeenCalledWith({
         idToken: 'token',
