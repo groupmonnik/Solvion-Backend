@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/entities/user.entity';
+import { AuthModule } from './auth/auth.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/guards/access-token-jwt.guard';
 import { AdAccount } from './adAccount/entities/adAccount.entity';
 import { Campaign } from './campaign/campaign.entity';
 import { CampaignMetrics } from './metrics/entitites/campaingMetrics.entity';
@@ -38,6 +40,8 @@ import { CreativeAnalysis } from './analytics/entities/creativeAnalysis.entity';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

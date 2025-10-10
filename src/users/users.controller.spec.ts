@@ -47,7 +47,7 @@ describe('UsersController', () => {
     const createUserDto: CreateUserDto = {
       name: 'John Doe',
       email: 'john@example.com',
-      passwordHash: 'hashedPassword123',
+      password: 'hashedPassword123',
     };
 
     const mockUser = { id: '550e8400-e29b-41d4-a716-446655440000', ...createUserDto };
