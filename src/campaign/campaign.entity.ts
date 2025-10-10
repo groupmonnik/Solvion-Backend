@@ -26,6 +26,8 @@ export class Campaign {
   })
   @ManyToOne(() => AdAccount, adAccount => adAccount.campaigns, {
     nullable: false,
+    cascade: true,
+    orphanedRowAction: 'delete',
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'account_id' })
@@ -90,13 +92,17 @@ export class Campaign {
     type: () => [CampaignMetrics],
     description: 'List of metrics associated with the campaign',
   })
-  @OneToMany(() => CampaignMetrics, metrics => metrics.campaign)
+  @OneToMany(() => CampaignMetrics, metrics => metrics.campaign, {
+    cascade: ['insert', 'update'],
+  })
   metrics: CampaignMetrics[];
 
   @ApiPropertyOptional({
     type: () => [Creative],
     description: 'List of creatives associated with the campaign',
   })
-  @OneToMany(() => Creative, creative => creative.campaign)
+  @OneToMany(() => Creative, creative => creative.campaign, {
+    cascade: ['insert', 'update'],
+  })
   creatives: Creative[];
 }

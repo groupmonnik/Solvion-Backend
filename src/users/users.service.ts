@@ -26,7 +26,7 @@ export class UsersService {
     const hashedPassword = await PasswordService.hashPassword(payload.password);
     const createUserResult = this.usersRepository.create({
       ...payload,
-      passwordHash: hashedPassword,
+      password: hashedPassword,
     });
     return await this.usersRepository.save(createUserResult);
   }
