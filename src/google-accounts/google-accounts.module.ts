@@ -1,4 +1,4 @@
-import { GoogleExceptionFilter } from '@/common/exception-filters/http-exception/google-exception.filter';
+import { GoogleExceptionFilter } from '@/common/exception-filters/google-exception/google-exception.filter';
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { GoogleAccountsController } from './google-accounts.controller';

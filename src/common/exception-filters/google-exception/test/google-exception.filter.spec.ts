@@ -1,4 +1,4 @@
-import { GoogleExceptionFilter } from '@/common/exception-filters/http-exception/google-exception.filter';
+import { GoogleExceptionFilter } from '@/common/exception-filters/google-exception/google-exception.filter';
 import { ResponseType } from '@/common/types/response.type';
 import { ArgumentsHost, HttpStatus, Logger } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
@@ -37,7 +37,7 @@ describe('GoogleExceptionFilter', () => {
     jest.clearAllMocks();
   });
 
-  it('deve capturar qualquer erro GaxiosError e enviar uma resposta com detalhes', () => {
+  it('should catch any GaxiosError error and send a response with details', () => {
     const fakeResponse = {
       status: 400,
       data: { error_description: 'Falha na requisição Google' },
@@ -65,7 +65,7 @@ describe('GoogleExceptionFilter', () => {
     } as ResponseType<any>);
   });
 
-  it('deve usar valores padrão caso não exista resposta do Google', () => {
+  it('should use default values ​​if there is no response from Google', () => {
     const exception = new GaxiosError('Erro sem response', {} as any, {} as any, undefined);
 
     filter.catch(exception, mockHost as ArgumentsHost);
