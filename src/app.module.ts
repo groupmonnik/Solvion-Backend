@@ -5,10 +5,20 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/access-token-jwt.guard';
+import { AdAccountModule } from './adAccount/adAccount.module';
+import { CampaignModule } from './campaign/campaign.module';
+import { CreativeModule } from './creative/creative.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
     UsersModule,
+    AdAccountModule,
+    CampaignModule,
+    CreativeModule,
+    MetricsModule,
+    AnalyticsModule,
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
