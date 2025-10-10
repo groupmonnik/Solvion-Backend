@@ -77,14 +77,14 @@ describe('UsersService', () => {
           id: '550e8400-e29b-41d4-a716-446655440000',
           name: 'John Doe',
           email: 'john@example.com',
-          passwordHash: 'hashedPassword123',
+          password: 'hashedPassword123',
           role: UserRole.CLIENT,
         },
         {
           id: '550e8400-e29b-41d4-a716-446655440001',
           name: 'Jane Smith',
           email: 'jane@example.com',
-          passwordHash: 'hashedPassword456',
+          password: 'hashedPassword456',
           role: UserRole.ANALYST,
         },
       ];
@@ -115,7 +115,7 @@ describe('UsersService', () => {
         id: '550e8400-e29b-41d4-a716-446655440000',
         name: 'John Doe',
         email: 'john@example.com',
-        passwordHash: 'hashedPassword123',
+        password: 'hashedPassword123',
         role: UserRole.CLIENT,
       };
 
@@ -153,7 +153,7 @@ describe('UsersService', () => {
         id: '550e8400-e29b-41d4-a716-446655440000',
         name: 'John Doe Updated',
         email: 'johnupdated@example.com',
-        passwordHash: 'hashedPassword123',
+        password: 'hashedPassword123',
         role: UserRole.CLIENT,
       };
 

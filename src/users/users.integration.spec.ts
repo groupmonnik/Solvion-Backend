@@ -66,7 +66,7 @@ describe('Users Integration Tests', () => {
       expect(createUserResult.data).toHaveProperty('id');
       expect(createUserResult.data.name).toBe(createUserDto.name);
       expect(createUserResult.data.email).toBe(createUserDto.email);
-      expect(createUserResult.data.passwordHash).toBe(createUserDto.password);
+      expect(createUserResult.data.password).toBe(createUserDto.password);
 
       // Verify user was actually saved to database
       const savedUser = await usersRepository.findOneBy({ id: createUserResult.data.id });
@@ -98,14 +98,14 @@ describe('Users Integration Tests', () => {
       const user1 = await usersRepository.save({
         name: 'John Doe',
         email: 'john@example.com',
-        passwordHash: 'hashedPassword123',
+        password: 'hashedPassword123',
         role: UserRole.CLIENT,
       });
 
       const user2 = await usersRepository.save({
         name: 'Jane Smith',
         email: 'jane@example.com',
-        passwordHash: 'hashedPassword456',
+        password: 'hashedPassword456',
         role: UserRole.ANALYST,
       });
 
@@ -135,7 +135,7 @@ describe('Users Integration Tests', () => {
       const user = await usersRepository.save({
         name: 'John Doe',
         email: 'john@example.com',
-        passwordHash: 'hashedPassword123',
+        password: 'hashedPassword123',
         role: UserRole.CLIENT,
       });
 
@@ -164,7 +164,7 @@ describe('Users Integration Tests', () => {
       const user = await usersRepository.save({
         name: 'John Doe',
         email: 'john@example.com',
-        passwordHash: 'hashedPassword123',
+        password: 'hashedPassword123',
         role: UserRole.CLIENT,
       });
 
@@ -198,7 +198,7 @@ describe('Users Integration Tests', () => {
       const user = await usersRepository.save({
         name: 'John Doe',
         email: 'john@example.com',
-        passwordHash: 'hashedPassword123',
+        password: 'hashedPassword123',
         role: UserRole.CLIENT,
       });
 
