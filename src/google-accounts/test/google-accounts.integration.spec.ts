@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import { User } from '@/users/entities/user.entity';
 import { google } from 'googleapis';
 
-// 👇 Mock do módulo googleapis (a service depende disso)
 jest.mock('googleapis', () => {
   const mVerify = jest.fn();
   const mGetToken = jest.fn();
