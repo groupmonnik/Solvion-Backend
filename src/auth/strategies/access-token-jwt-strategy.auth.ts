@@ -1,11 +1,11 @@
-import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-jwt';
-import { FastifyRequest } from 'fastify';
-import * as config from '@nestjs/config';
 import accessTokenConfig from '@/auth/config/access-token-jwt.config';
-import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
 import { JwtPayload } from '@/auth/types/service/payloads/jwt-payload.type';
+import { EncryptService } from '@/common/encrypt/encrypt.service.auth';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import * as config from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { FastifyRequest } from 'fastify';
+import { Strategy } from 'passport-jwt';
 
 @Injectable()
 export class AccessTokenJwtStrategy extends PassportStrategy(Strategy, 'AccessTokenJwt') {
