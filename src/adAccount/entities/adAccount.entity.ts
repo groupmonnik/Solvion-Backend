@@ -36,7 +36,12 @@ export class AdAccount {
     description: 'Associated user',
     type: () => User,
   })
-  @ManyToOne(() => User, user => user.adAccounts, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.adAccounts, {
+    nullable: false,
+    cascade: true,
+    orphanedRowAction: 'delete',
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
@@ -90,6 +95,8 @@ export class AdAccount {
     type: () => [Campaign],
     description: 'List of campaigns associated with the ad account',
   })
-  @OneToMany(() => Campaign, campaign => campaign.account)
+  @OneToMany(() => Campaign, campaign => campaign.account, {
+    cascade: ['insert', 'update'],
+  })
   campaigns: Campaign[];
 }

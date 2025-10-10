@@ -24,6 +24,8 @@ export class CreativeMetrics {
   })
   @OneToOne(() => Creative, creative => creative.metrics, {
     nullable: false,
+    cascade: true,
+    orphanedRowAction: 'delete',
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'creative_id' })

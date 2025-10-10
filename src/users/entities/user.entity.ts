@@ -46,7 +46,7 @@ export class User {
     minLength: 8,
   })
   @Column({ name: 'password_hash' })
-  passwordHash: string;
+  password: string;
 
   @ApiProperty({
     description: 'User role',
@@ -75,6 +75,8 @@ export class User {
     type: () => [AdAccount],
     description: 'List of ad accounts associated with the user',
   })
-  @OneToMany(() => AdAccount, adAccount => adAccount.user)
+  @OneToMany(() => AdAccount, adAccount => adAccount.user, {
+    cascade: ['insert', 'update'],
+  })
   adAccounts: AdAccount[];
 }

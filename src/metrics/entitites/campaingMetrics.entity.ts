@@ -22,7 +22,12 @@ export class CampaignMetrics {
     description: 'Associated campaign',
     type: () => Campaign,
   })
-  @ManyToOne(() => Campaign, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Campaign, {
+    nullable: false,
+    cascade: true,
+    orphanedRowAction: 'delete',
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'campaign_id' })
   campaign: Campaign;
 

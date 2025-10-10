@@ -22,7 +22,11 @@ export class CreativeAnalysis {
     description: 'Associated creative',
     type: () => Creative,
   })
-  @OneToOne(() => Creative, { onDelete: 'CASCADE' })
+  @OneToOne(() => Creative, {
+    cascade: true,
+    orphanedRowAction: 'delete',
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'creative_id' })
   creative: Creative;
 

@@ -34,6 +34,8 @@ export class Creative {
   })
   @ManyToOne(() => Campaign, campaign => campaign.creatives, {
     nullable: false,
+    cascade: true,
+    orphanedRowAction: 'delete',
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'campaign_id' })
@@ -97,13 +99,17 @@ export class Creative {
     type: () => CreativeMetrics,
     description: 'Metrics associated with the creative',
   })
-  @OneToOne(() => CreativeMetrics, metrics => metrics.creative)
+  @OneToOne(() => CreativeMetrics, metrics => metrics.creative, {
+    cascade: ['insert', 'update'],
+  })
   metrics: CreativeMetrics;
 
   @ApiPropertyOptional({
     type: () => CreativeAnalysis,
     description: 'AI analysis associated with the creative',
   })
-  @OneToOne(() => CreativeAnalysis, analysis => analysis.creative)
+  @OneToOne(() => CreativeAnalysis, analysis => analysis.creative, {
+    cascade: ['insert', 'update'],
+  })
   analysis: CreativeAnalysis;
 }
