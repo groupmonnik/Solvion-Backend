@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { HttpExceptionCustom } from '@/common/exceptions/custom/custom.exception';
 
 describe('UsersService', () => {
@@ -37,13 +37,13 @@ describe('UsersService', () => {
   describe('createUser', () => {
     it('should create and save a user successfully', async () => {
       const createUserPayload = {
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       };
 
-      const mockUser = { id: 1, ...createUserPayload };
+      const mockUser = { id: '550e8400-e29b-41d4-a716-446655440000', ...createUserPayload };
 
       mockRepository.create.mockReturnValue(mockUser);
       mockRepository.save.mockResolvedValue(mockUser);
@@ -57,13 +57,12 @@ describe('UsersService', () => {
 
     it('should handle database errors during creation', async () => {
       const createUserPayload = {
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
       };
 
-      const mockUser = { id: 1, ...createUserPayload };
+      const mockUser = { id: '550e8400-e29b-41d4-a716-446655440000', ...createUserPayload };
       mockRepository.create.mockReturnValue(mockUser);
       mockRepository.save.mockRejectedValue(new Error('Database error'));
 
@@ -75,18 +74,18 @@ describe('UsersService', () => {
     it('should return all users', async () => {
       const mockUsers = [
         {
-          id: 1,
-          firstName: 'John',
-          lastName: 'Doe',
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: 'John Doe',
           email: 'john@example.com',
-          password: 'password123',
+          password: 'hashedPassword123',
+          role: UserRole.CLIENT,
         },
         {
-          id: 2,
-          firstName: 'Jane',
-          lastName: 'Smith',
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          name: 'Jane Smith',
           email: 'jane@example.com',
-          password: 'password456',
+          password: 'hashedPassword456',
+          role: UserRole.ANALYST,
         },
       ];
 
@@ -113,27 +112,31 @@ describe('UsersService', () => {
   describe('findUserById', () => {
     it('should return a user when found', async () => {
       const mockUser = {
-        id: 1,
-        firstName: 'John',
-        lastName: 'Doe',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       };
 
       mockRepository.findOneBy.mockResolvedValue(mockUser);
 
-      const result = await service.findUserById({ id: 1 });
+      const result = await service.findUserById({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
-      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: 1 });
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+      });
       expect(result).toEqual(mockUser);
     });
 
     it('should return null when user not found', async () => {
       mockRepository.findOneBy.mockResolvedValue(null);
 
-      const result = await service.findUserById({ id: 999 });
+      const result = await service.findUserById({ id: '550e8400-e29b-41d4-a716-446655440999' });
 
-      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: 999 });
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({
+        id: '550e8400-e29b-41d4-a716-446655440999',
+      });
       expect(result).toBeNull();
     });
   });
@@ -141,17 +144,17 @@ describe('UsersService', () => {
   describe('updateUser', () => {
     it('should update a user successfully', async () => {
       const updateUserPayload = {
-        id: 1,
-        firstName: 'John Updated',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'John Doe Updated',
         email: 'johnupdated@example.com',
       };
 
       const mockUser = {
-        id: 1,
-        firstName: 'John Updated',
-        lastName: 'Doe',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'John Doe Updated',
         email: 'johnupdated@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       };
 
       mockRepository.update.mockResolvedValue({ affected: 1 });
@@ -159,18 +162,20 @@ describe('UsersService', () => {
 
       const result = await service.updateUser(updateUserPayload);
 
-      expect(mockRepository.update).toHaveBeenCalledWith(1, {
-        firstName: 'John Updated',
+      expect(mockRepository.update).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440000', {
+        name: 'John Doe Updated',
         email: 'johnupdated@example.com',
       });
-      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: 1 });
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+      });
       expect(result).toEqual(mockUser);
     });
 
     it('should throw HttpExceptionCustom when user not found after update', async () => {
       const updateUserPayload = {
-        id: 999,
-        firstName: 'John Updated',
+        id: '550e8400-e29b-41d4-a716-446655440999',
+        name: 'John Doe Updated',
       };
 
       mockRepository.update.mockResolvedValue({ affected: 1 });
@@ -184,17 +189,17 @@ describe('UsersService', () => {
     it('should remove a user successfully', async () => {
       mockRepository.delete.mockResolvedValue({ affected: 1 });
 
-      await service.removeUser({ id: 1 });
+      await service.removeUser({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
-      expect(mockRepository.delete).toHaveBeenCalledWith(1);
+      expect(mockRepository.delete).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440000');
     });
 
     it('should handle deletion of non-existent user', async () => {
       mockRepository.delete.mockResolvedValue({ affected: 0 });
 
-      await service.removeUser({ id: 999 });
+      await service.removeUser({ id: '550e8400-e29b-41d4-a716-446655440999' });
 
-      expect(mockRepository.delete).toHaveBeenCalledWith(999);
+      expect(mockRepository.delete).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440999');
     });
   });
 });

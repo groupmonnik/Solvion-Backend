@@ -1,6 +1,9 @@
+import { UserRole } from '@/users/entities/user.entity';
+
 export type UpdateUserPayload = {
-  firstName?: string;
-  lastName?: string;
+  name?: string;
   email?: string;
   password?: string;
+  role?: UserRole;
+  business?: string;
 };

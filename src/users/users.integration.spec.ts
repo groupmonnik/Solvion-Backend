@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import type { FastifyReply } from 'fastify';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { TestDatabaseModule } from '../common/test/test-database.module';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -39,8 +39,11 @@ describe('Users Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Clean database before each test
-    await usersRepository.clear();
+    // Clean database before each test - delete all users (CASCADE will handle related records)
+    const allUsers = await usersRepository.find();
+    if (allUsers.length > 0) {
+      await usersRepository.remove(allUsers);
+    }
 
     // Initialize mock reply
     mockReply = {
@@ -51,19 +54,19 @@ describe('Users Integration Tests', () => {
   describe('User Creation', () => {
     it('should create a user successfully through controller', async () => {
       const createUserDto: CreateUserDto = {
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       };
 
       const createUserResult = await usersController.create(createUserDto, mockReply);
 
       expect(createUserResult.success).toBe(true);
       expect(createUserResult.data).toHaveProperty('id');
-      expect(createUserResult.data.firstName).toBe(createUserDto.firstName);
-      expect(createUserResult.data.lastName).toBe(createUserDto.lastName);
+      expect(createUserResult.data.name).toBe(createUserDto.name);
       expect(createUserResult.data.email).toBe(createUserDto.email);
+      expect(createUserResult.data.password).toBe(createUserDto.password);
 
       // Verify user was actually saved to database
       const savedUser = await usersRepository.findOneBy({ id: createUserResult.data.id });
@@ -73,16 +76,15 @@ describe('Users Integration Tests', () => {
 
     it('should create a user successfully through service', async () => {
       const createUserDto: CreateUserDto = {
-        firstName: 'Service',
-        lastName: 'Test',
+        name: 'Service Test',
         email: 'service@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
       };
 
       const createUserResult = await usersService.createUser(createUserDto);
 
       expect(createUserResult).toHaveProperty('id');
-      expect(createUserResult.firstName).toBe(createUserDto.firstName);
+      expect(createUserResult.name).toBe(createUserDto.name);
 
       // Verify in database
       const count = await usersRepository.count();
@@ -94,17 +96,17 @@ describe('Users Integration Tests', () => {
     it('should return all users', async () => {
       // Arrange: Create test users directly in database
       const user1 = await usersRepository.save({
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       });
 
       const user2 = await usersRepository.save({
-        firstName: 'Jane',
-        lastName: 'Smith',
+        name: 'Jane Smith',
         email: 'jane@example.com',
-        password: 'password456',
+        password: 'hashedPassword456',
+        role: UserRole.ANALYST,
       });
 
       // Act
@@ -131,10 +133,10 @@ describe('Users Integration Tests', () => {
     it('should return a specific user by id', async () => {
       // Arrange
       const user = await usersRepository.save({
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       });
 
       // Act
@@ -147,7 +149,10 @@ describe('Users Integration Tests', () => {
     });
 
     it('should return null for non-existent user', async () => {
-      const findOneUserResult = await usersController.findOne('999', mockReply);
+      const findOneUserResult = await usersController.findOne(
+        '550e8400-e29b-41d4-a716-446655440999',
+        mockReply,
+      );
 
       expect(findOneUserResult.data).toBeNull();
     });
@@ -157,14 +162,14 @@ describe('Users Integration Tests', () => {
     it('should update a user successfully', async () => {
       // Arrange
       const user = await usersRepository.save({
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       });
 
       const updateUserDto: UpdateUserDto = {
-        firstName: 'John Updated',
+        name: 'John Doe Updated',
         email: 'johnupdated@example.com',
       };
 
@@ -176,13 +181,13 @@ describe('Users Integration Tests', () => {
       );
 
       // Assert
-      expect(updateUserResult.data.firstName).toBe(updateUserDto.firstName);
+      expect(updateUserResult.data.name).toBe(updateUserDto.name);
       expect(updateUserResult.data.email).toBe(updateUserDto.email);
-      expect(updateUserResult.data.lastName).toBe(user.lastName); // Should remain unchanged
+      expect(updateUserResult.data.role).toBe(user.role); // Should remain unchanged
 
       // Verify changes persisted in database
       const updatedUser = await usersRepository.findOneBy({ id: user.id });
-      expect(updatedUser?.firstName).toBe(updateUserDto.firstName);
+      expect(updatedUser?.name).toBe(updateUserDto.name);
       expect(updatedUser?.email).toBe(updateUserDto.email);
     });
   });
@@ -191,10 +196,10 @@ describe('Users Integration Tests', () => {
     it('should remove a user successfully', async () => {
       // Arrange
       const user = await usersRepository.save({
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       });
 
       const initialCount = await usersRepository.count();
@@ -216,10 +221,10 @@ describe('Users Integration Tests', () => {
     it('should perform complete CRUD operations', async () => {
       // Create
       const createUserDto: CreateUserDto = {
-        firstName: 'E2E',
-        lastName: 'Test',
+        name: 'E2E Test',
         email: 'e2e@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
+        role: UserRole.CLIENT,
       };
 
       const createdUser = await usersController.create(createUserDto, mockReply);
@@ -234,13 +239,13 @@ describe('Users Integration Tests', () => {
       expect(allUsers.data).toHaveLength(1);
 
       // Update
-      const updateDto: UpdateUserDto = { firstName: 'E2E Updated' };
+      const updateDto: UpdateUserDto = { name: 'E2E Test Updated' };
       const updatedUser = await usersController.update(
         createdUser.data.id.toString(),
         updateDto,
         mockReply,
       );
-      expect(updatedUser.data.firstName).toBe('E2E Updated');
+      expect(updatedUser.data.name).toBe('E2E Test Updated');
 
       // Delete
       await usersController.remove(createdUser.data.id.toString(), mockReply);

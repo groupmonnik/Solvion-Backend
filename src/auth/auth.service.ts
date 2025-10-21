@@ -81,7 +81,7 @@ export class AuthService {
     });
 
     const user = await this.userRepository.findOne({
-      where: { id: decoded.sub ?? -1 },
+      where: { id: decoded.sub ?? '' },
     });
 
     return user;

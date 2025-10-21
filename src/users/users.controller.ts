@@ -76,7 +76,7 @@ export class UsersController {
     @Param('id') id: string,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<FindUserByIdResponse> {
-    const findUserByIdResult = await this.usersService.findUserById({ id: +id });
+    const findUserByIdResult = await this.usersService.findUserById({ id });
 
     reply.status(HttpStatus.OK);
 
@@ -107,7 +107,7 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<UpdateUserResponse> {
-    const updateUserResult = await this.usersService.updateUser({ id: +id, ...updateUserDto });
+    const updateUserResult = await this.usersService.updateUser({ id, ...updateUserDto });
 
     reply.status(HttpStatus.OK);
 
@@ -133,7 +133,7 @@ export class UsersController {
     @Param('id') id: string,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<RemoveUserResponse> {
-    const removeUserResult = await this.usersService.removeUser({ id: +id });
+    const removeUserResult = await this.usersService.removeUser({ id });
 
     reply.status(HttpStatus.OK);
 

@@ -1,37 +1,43 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { AdAccount } from '@/adAccount/entities/adAccount.entity';
+
+export enum UserRole {
+  ADMIN = 'admin',
+  ANALYST = 'analyst',
+  CLIENT = 'client',
+}
 
 @Entity()
 export class User {
   @ApiProperty({
     description: 'User unique identifier',
-    example: 1,
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @ApiProperty({
-    description: 'User first name',
-    example: 'John',
+    description: 'User Name',
+    example: 'John Doe',
     minLength: 1,
   })
   @Column()
-  firstName: string;
-
-  @ApiProperty({
-    description: 'User last name',
-    example: 'Doe',
-    minLength: 1,
-  })
-  @Column()
-  lastName: string;
+  name: string;
 
   @ApiProperty({
     description: 'User email address',
     example: 'john.doe@example.com',
     format: 'email',
   })
-  @Column()
+  @Column({ unique: true })
   email: string;
 
   @ApiProperty({
@@ -39,6 +45,38 @@ export class User {
     example: 'hashedPassword123',
     minLength: 8,
   })
-  @Column()
+  @Column({ name: 'password_hash' })
   password: string;
+
+  @ApiProperty({
+    description: 'User role',
+    example: 'admin',
+    enum: UserRole,
+    default: UserRole.CLIENT,
+  })
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.CLIENT })
+  role: UserRole;
+
+  @ApiPropertyOptional({
+    description: 'User business',
+    example: 'Tech Corp',
+  })
+  @Column({ type: 'varchar', nullable: true })
+  business: string | null;
+
+  @ApiProperty({ example: '2023-01-01T00:00:00.000Z' })
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+  @ApiProperty({ example: '2023-01-01T00:00:00.000Z' })
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+
+  @ApiPropertyOptional({
+    type: () => [AdAccount],
+    description: 'List of ad accounts associated with the user',
+  })
+  @OneToMany(() => AdAccount, adAccount => adAccount.user, {
+    cascade: ['insert', 'update'],
+  })
+  adAccounts: AdAccount[];
 }

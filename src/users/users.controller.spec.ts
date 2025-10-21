@@ -45,13 +45,12 @@ describe('UsersController', () => {
 
   it('should create a user', async () => {
     const createUserDto: CreateUserDto = {
-      firstName: 'John',
-      lastName: 'Doe',
+      name: 'John Doe',
       email: 'john@example.com',
-      password: 'password123',
+      password: 'hashedPassword123',
     };
 
-    const mockUser = { id: 1, ...createUserDto };
+    const mockUser = { id: '550e8400-e29b-41d4-a716-446655440000', ...createUserDto };
     mockUsersService.createUser.mockResolvedValue(mockUser);
 
     const createUserResult = await controller.create(createUserDto, mockReply);
@@ -69,18 +68,16 @@ describe('UsersController', () => {
   it('should return all users', async () => {
     const mockUsers = [
       {
-        id: 1,
-        firstName: 'John',
-        lastName: 'Doe',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'John Doe',
         email: 'john@example.com',
-        password: 'password123',
+        password: 'hashedPassword123',
       },
       {
-        id: 2,
-        firstName: 'Jane',
-        lastName: 'Smith',
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        name: 'Jane Smith',
         email: 'jane@example.com',
-        password: 'password456',
+        password: 'hashedPassword456',
       },
     ];
 
@@ -100,18 +97,22 @@ describe('UsersController', () => {
 
   it('should return a single user', async () => {
     const mockUser = {
-      id: 1,
-      firstName: 'John',
-      lastName: 'Doe',
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: 'John Doe',
       email: 'john@example.com',
-      password: 'password123',
+      password: 'hashedPassword123',
     };
 
     mockUsersService.findUserById.mockResolvedValue(mockUser);
 
-    const findOneUserResult = await controller.findOne('1', mockReply);
+    const findOneUserResult = await controller.findOne(
+      '550e8400-e29b-41d4-a716-446655440000',
+      mockReply,
+    );
 
-    expect(mockUsersService.findUserById).toHaveBeenCalledWith({ id: 1 });
+    expect(mockUsersService.findUserById).toHaveBeenCalledWith({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+    });
     expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.OK);
     expect(findOneUserResult).toEqual({
       statusCode: HttpStatus.OK,
@@ -123,24 +124,29 @@ describe('UsersController', () => {
 
   it('should update a user', async () => {
     const updateUserDto: UpdateUserDto = {
-      firstName: 'John Updated',
-      lastName: 'Doe',
+      name: 'John Doe Updated',
       email: 'johnupdated@example.com',
     };
 
     const mockUser = {
-      id: 1,
-      firstName: 'John Updated',
-      lastName: 'Doe',
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: 'John Doe Updated',
       email: 'johnupdated@example.com',
-      password: 'password123',
+      password: 'hashedPassword123',
     };
 
     mockUsersService.updateUser.mockResolvedValue(mockUser);
 
-    const updateUserResult = await controller.update('1', updateUserDto, mockReply);
+    const updateUserResult = await controller.update(
+      '550e8400-e29b-41d4-a716-446655440000',
+      updateUserDto,
+      mockReply,
+    );
 
-    expect(mockUsersService.updateUser).toHaveBeenCalledWith({ id: 1, ...updateUserDto });
+    expect(mockUsersService.updateUser).toHaveBeenCalledWith({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      ...updateUserDto,
+    });
     expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.OK);
     expect(updateUserResult).toEqual({
       statusCode: HttpStatus.OK,
@@ -153,9 +159,14 @@ describe('UsersController', () => {
   it('should remove a user', async () => {
     mockUsersService.removeUser.mockResolvedValue(undefined);
 
-    const removeUserResult = await controller.remove('1', mockReply);
+    const removeUserResult = await controller.remove(
+      '550e8400-e29b-41d4-a716-446655440000',
+      mockReply,
+    );
 
-    expect(mockUsersService.removeUser).toHaveBeenCalledWith({ id: 1 });
+    expect(mockUsersService.removeUser).toHaveBeenCalledWith({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+    });
     expect(mockReply.status).toHaveBeenCalledWith(HttpStatus.OK);
     expect(removeUserResult).toEqual({
       statusCode: HttpStatus.OK,

@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidationPipe, HttpStatus } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { AuthModule } from '@/auth/auth.module';
 import { User } from '@/users/entities/user.entity';
@@ -19,6 +18,13 @@ import { LogoutResponse } from '@/auth/types/controller/responses/logout-respons
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '@/auth/auth.service';
 import { setupTestJwtConfig, clearTestJwtConfig } from '@/common/test/test-jwt-config.util';
+import { TestDatabaseModule } from '@/common/test/test-database.module';
+import { CampaignModule } from '@/campaign/campaign.module';
+import { AdAccountModule } from '@/adAccount/adAccount.module';
+import { AnalyticsModule } from '@/analytics/analytics.module';
+import { CreativeModule } from '@/creative/creative.module';
+import { MetricsModule } from '@/metrics/metrics.module';
+import { UsersModule } from '@/users/users.module';
 
 describe('AuthController (Integration)', () => {
   let app: NestFastifyApplication;
@@ -35,16 +41,14 @@ describe('AuthController (Integration)', () => {
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
+        TestDatabaseModule,
         AuthModule,
-        TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          dropSchema: true,
-          entities: [User],
-          synchronize: true,
-          logging: false,
-        }),
-        TypeOrmModule.forFeature([User]),
+        UsersModule,
+        AdAccountModule,
+        CampaignModule,
+        CreativeModule,
+        MetricsModule,
+        AnalyticsModule,
       ],
       providers: [
         PasswordService,
@@ -86,14 +90,13 @@ describe('AuthController (Integration)', () => {
   });
 
   beforeEach(async () => {
-    await userRepository.clear();
+    await userRepository.deleteAll();
   });
 
   const createTestUser = async (email: string, password = DEFAULT_PASSWORD): Promise<User> => {
     const hashed = await PasswordService.hashPassword(password);
     const user = userRepository.create({
-      firstName: 'Test',
-      lastName: 'User',
+      name: 'Test User',
       email,
       password: hashed,
     });
