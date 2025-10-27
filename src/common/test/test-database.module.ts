@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { User } from '@/users/entities/user.entity';
-import { AdAccount } from '@/adAccount/entities/adAccount.entity';
-import { CreativeAnalysis } from '@/analytics/entities/creativeAnalysis.entity';
+import { AdsAccount } from '@/ads-account/entities/ads.account.entity';
+import { CreativeAnalysis } from '@/analytics/entities/analysis.entity';
 import { Creative } from '@/creative/entities/creative.entity';
-import { CampaignMetrics } from '@/metrics/entitites/campaingMetrics.entity';
-import { CreativeMetrics } from '@/metrics/entitites/creativeMetrics.entity';
-import { Campaign } from '@/campaign/campaign.entity';
+import { CampaignMetrics } from '@/campaign/entities/metrics.entity';
+import { CreativeMetrics } from '@/creative/entities/metrics.entity';
+import { Campaign } from '@/campaign/entities/campaign.entity';
 
 @Module({
   imports: [
@@ -23,7 +23,7 @@ import { Campaign } from '@/campaign/campaign.entity';
         database: configService.get<string>('TEST_DB_DATABASE', 'solvion_test'),
         entities: [
           User,
-          AdAccount,
+          AdsAccount,
           CreativeAnalysis,
           Campaign,
           Creative,

@@ -24,12 +24,11 @@ describe('AuthService', () => {
   let refreshTokenConfig: ConfigType<typeof refreshTokenJwtConfig>;
 
   let validateAccessToken: (params: { token: string; expectedEmail: string }) => void;
-  let validateRefreshToken: (params: { token: string; expectedSub: number }) => void;
+  let validateRefreshToken: (params: { token: string; expectedSub: string }) => void;
 
   let mockUser: User;
   const mockPassword: string = 'valid-password';
 
-  // ✅ Setup test configuration using utility
   const testConfig = setupTestJwtConfig({
     cryptoKey: '0000000000000000000000000000000000000000000000000000000000000000',
   });
@@ -37,7 +36,7 @@ describe('AuthService', () => {
   beforeAll(async () => {
     const hashedPassword: string = await bcrypt.hash(mockPassword, 10);
     mockUser = {
-      id: 1,
+      id: '00000000-0000-0000-0000-000000000001',
       email: 'test@example.com',
       password: hashedPassword,
     } as User;
@@ -205,6 +204,19 @@ describe('AuthService', () => {
 
       expect(encryptSpy).toHaveBeenCalledTimes(2);
     });
+
+    it('should generate tokens successfully with isRefresh false', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+
+      const result = await service.generateTokens({
+        email: mockUser.email,
+        password: mockPassword,
+        isRefresh: false,
+      });
+
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
+    });
   });
 
   describe('refreshToken', () => {
@@ -292,6 +304,12 @@ describe('AuthService', () => {
         token: decryptedToken,
         isRefresh: true,
       });
+    });
+    it('should throw error if refresh token is invalid', async () => {
+      jest.spyOn(encryptService, 'decrypt').mockReturnValue('invalid-token');
+
+      const refreshPromise = service.refreshToken('any-token');
+      await expect(refreshPromise).rejects.toThrow();
     });
   });
 
@@ -388,7 +406,10 @@ describe('AuthService', () => {
 
       const refreshToken: string = jwtService.sign(
         { sub: mockUser.id },
-        { secret: service['refreshTokenConfiguration'].secret, expiresIn: '7d' },
+        {
+          secret: service['refreshTokenConfiguration'].secret,
+          expiresIn: '7d',
+        },
       );
 
       await service.verifyToken({
@@ -415,8 +436,19 @@ describe('AuthService', () => {
 
       expect(verifyTokenResult).toBeNull();
       expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { id: -1 },
+        where: { id: '' },
       });
+    });
+    it('should return null if token sub is null', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: null });
+
+      const result = await service.verifyToken({
+        token: 'token',
+        isRefresh: false,
+      });
+      expect(result).toBeNull();
     });
   });
 });
