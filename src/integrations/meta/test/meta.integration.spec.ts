@@ -1,10 +1,10 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { MetaAuthController } from "@/integrations/meta/meta.accounts.controller";
-import { MetaAuthService } from "@/integrations/meta/meta.accounts.service";
-import { UnauthorizedException } from "@nestjs/common";
-import type { FastifyReply } from "fastify";
+import { Test, TestingModule } from '@nestjs/testing';
+import { MetaAuthController } from '@/integrations/meta/meta.accounts.controller';
+import { MetaAuthService } from '@/integrations/meta/meta.accounts.service';
+import { UnauthorizedException } from '@nestjs/common';
+import type { FastifyReply } from 'fastify';
 
-describe("MetaAuthController", () => {
+describe('MetaAuthController', () => {
   let controller: MetaAuthController;
   let metaAuthService: jest.Mocked<MetaAuthService>;
   let mockReply: jest.Mocked<FastifyReply>;
@@ -37,9 +37,9 @@ describe("MetaAuthController", () => {
     jest.clearAllMocks();
   });
 
-  describe("redirectToMeta", () => {
-    it("deve redirecionar para a URL retornada pelo service", () => {
-      const mockUrl = "https://facebook.com/oauth";
+  describe('redirectToMeta', () => {
+    it('should redirect to the URL returned by the service', () => {
+      const mockUrl = 'https://facebook.com/oauth';
       metaAuthService.getAuthUrl.mockReturnValue(mockUrl);
 
       const action = () => controller.redirectToMeta(mockReply);
@@ -51,15 +51,15 @@ describe("MetaAuthController", () => {
     });
   });
 
-  describe("metaCallback", () => {
-    it("deve retornar RedirectResponse quando o código for válido", async () => {
-      const mockCode = "abc123";
-      const mockTokens = { token: "token-xyz", expires_at: new Date() };
+  describe('metaCallback', () => {
+    it('must return RedirectResponse when the code is valid', async () => {
+      const mockCode = 'abc123';
+      const mockTokens = { token: 'token-xyz', expires_at: new Date() };
       metaAuthService.getTokens.mockResolvedValue(mockTokens);
 
       const expectedResponse = {
         statusCode: 200,
-        message: "redirection and collection of tokens done successfully",
+        message: 'redirection and collection of tokens done successfully',
         success: true,
         data: null,
       };
@@ -71,18 +71,16 @@ describe("MetaAuthController", () => {
       expect(result).toEqual(expectedResponse);
     });
 
-    it("deve lançar UnauthorizedException se o code estiver vazio", async () => {
-      const action = controller.metaCallback("");
+    it('should throw UnauthorizedException if code is empty', async () => {
+      const action = controller.metaCallback('');
       await expect(action).rejects.toThrow(UnauthorizedException);
     });
 
-    it("deve propagar erro do MetaAuthService se getTokens falhar", async () => {
-      metaAuthService.getTokens.mockRejectedValue(
-        new Error("Erro ao pegar token"),
-      );
+    it('should propagate error from MetaAuthService if getTokens fails', async () => {
+      metaAuthService.getTokens.mockRejectedValue(new Error('Erro ao pegar token'));
 
-      const action = controller.metaCallback("bad-code");
-      await expect(action).rejects.toThrow("Erro ao pegar token");
+      const action = controller.metaCallback('bad-code');
+      await expect(action).rejects.toThrow('Erro ao pegar token');
     });
   });
 });

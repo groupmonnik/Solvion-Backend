@@ -22,9 +22,7 @@ export class MetaExceptionFilter implements ExceptionFilter {
     }
 
     const status =
-      (exception.statusCode as number) ||
-      HttpStatus.UNAUTHORIZED ||
-      HttpStatus.BAD_GATEWAY;
+      (exception.statusCode as number) || HttpStatus.UNAUTHORIZED || HttpStatus.BAD_GATEWAY;
 
     const message = exception.message || 'Falha na integração com a Meta (OAuth2).';
 

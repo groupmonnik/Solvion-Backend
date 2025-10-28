@@ -3,12 +3,13 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { FastifyReply } from 'fastify';
-import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
-import { User, UserRole } from './entities/user.entity';
-import { TestDatabaseModule } from '../common/test/test-database.module';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersController } from '@/users/users.controller';
+import { UsersService } from '@/users/users.service';
+import { User } from '@/users/entities/user.entity';
+import { UserRole } from '../enum/user.role.enum';
+import { TestDatabaseModule } from '@/common/test/test-database.module';
+import { CreateUserDto } from '@/users/dto/create-user.dto';
+import { UpdateUserDto } from '@/users/dto/update-user.dto';
 
 describe('Users Integration Tests', () => {
   let app: TestingModule;

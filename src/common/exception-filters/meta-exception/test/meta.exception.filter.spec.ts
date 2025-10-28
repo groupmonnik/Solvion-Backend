@@ -22,7 +22,7 @@ describe('MetaExceptionFilter', () => {
     };
   });
 
-  it('deve capturar erro OAuth2 simulado e retornar resposta formatada', () => {
+  it('should catch simulated OAuth2 error and return formatted response', () => {
     const exception = {
       name: 'AuthorizationCodeError',
       message: 'invalid_grant',
@@ -48,7 +48,7 @@ describe('MetaExceptionFilter', () => {
     );
   });
 
-  it('deve lidar com erro sem data (detalhes nulos)', () => {
+  it('should handle undated error (null details)', () => {
     const exception = {
       name: 'AuthorizationCodeError',
       message: 'server_error',
@@ -66,7 +66,7 @@ describe('MetaExceptionFilter', () => {
     );
   });
 
-  it('deve registrar logs de erro', () => {
+  it('must log error logs', () => {
     const mockLogger = { log: jest.fn(), error: jest.fn() };
     (filter as any).logger = mockLogger;
 

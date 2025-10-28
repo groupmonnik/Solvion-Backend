@@ -1,4 +1,4 @@
-import { GoogleExceptionFilter } from '@/common/exception-filters/google-exception/google-exception.filter';
+import { GoogleExceptionFilter } from '@/common/exception-filters/google-exception/google.exception.filter';
 import { ResponseType } from '@/common/types/response.type';
 import { ArgumentsHost, HttpStatus, Logger } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
