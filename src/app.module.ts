@@ -4,24 +4,26 @@ import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/access-token-jwt.guard';
-
-import { AdAccountModule } from './adAccount/adAccount.module';
+import { AdsAccountModule } from './ads-account/ads.account.module';
 import { CampaignModule } from './campaign/campaign.module';
 import { CreativeModule } from './creative/creative.module';
-import { MetricsModule } from './metrics/metrics.module';
 import { AnalyticsModule } from './analytics/analytics.module';
-import { GoogleAccountsModule } from './google-accounts/google-accounts.module';
-import { User } from './users/entities/user.entity';
+import { GoogleAccountsModule } from './integrations/google/google.accounts.module';
 import { UsersModule } from './users/users.module';
+import { PredictionModule } from './prediction/prediction.module';
+import { MetaAccountsModule } from './integrations/meta/meta.accounts.module';
 
 @Module({
   imports: [
     UsersModule,
-    AdAccountModule,
+    AdsAccountModule,
     CampaignModule,
     CreativeModule,
-    MetricsModule,
     AnalyticsModule,
+    AuthModule,
+    GoogleAccountsModule,
+    MetaAccountsModule,
+    PredictionModule,
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -37,8 +39,6 @@ import { UsersModule } from './users/users.module';
       }),
       inject: [ConfigService],
     }),
-    AuthModule,
-    GoogleAccountsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
